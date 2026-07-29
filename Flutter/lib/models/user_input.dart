@@ -8,7 +8,7 @@ class UserInput {
     required this.activity,
     required this.environment,
   });
-
+ 
   factory UserInput.fromJson(Map<String, dynamic> json) {
     return UserInput(
       workerType: json['worker_type'] ?? '',
