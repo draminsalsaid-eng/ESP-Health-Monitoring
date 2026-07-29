@@ -1,7 +1,7 @@
 import 'user_input.dart';
 import 'sensor_data.dart';
 import 'ai_result.dart';
-
+  
 class HealthResponse {
   final UserInput userInput;
   final SensorData sensorData;
