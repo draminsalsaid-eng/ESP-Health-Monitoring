@@ -25,7 +25,7 @@ class SensorData {
     required this.accMag,
     required this.gyroMag,
   });
-
+ 
   factory SensorData.fromJson(Map<String, dynamic> json) {
     return SensorData(
       hr: json['HR'] ?? 0,
