@@ -54,6 +54,37 @@ Future<bool> checkConnection() async {
     );
   }
 }
-// Check Connection  //
-  
+// Send user Input  //
+  Future<void> sendUserInput(UserInput input) async {
+  try {
+    final response = await http
+        .post(
+          Uri.parse(
+            ApiConstants.baseUrl + '/start',
+          ),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: json.encode(
+            input.toJson(),
+          ),
+        )
+        .timeout(ApiConstants.connectionTimeout);
+
+    if (response.statusCode != 200) {
+      throw NetworkException(
+        'Failed to send user input',
+      );
+    }
+
+  } catch (e) {
+    if (e is NetworkException) {
+      rethrow;
+    }
+
+    throw NetworkException(
+      'Cannot send data to ESP32',
+    );
+  }
+}
 }
