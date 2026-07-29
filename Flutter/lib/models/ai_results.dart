@@ -4,7 +4,7 @@ class AIResult {
   final double riskScore;
   final double environmentStress;
   final double activityStress;
-
+ 
   const AIResult({
     required this.prediction,
     required this.riskScore,
