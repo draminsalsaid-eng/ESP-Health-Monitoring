@@ -62,12 +62,14 @@ Future<bool> checkConnection() async {
 
     if (response.statusCode == 200) {
       final jsonData = json.decode(response.body);
-if (jsonData.isEmpty) {
+
+if (jsonData is Map<String, dynamic> && jsonData.isEmpty) {
   throw NetworkException(
     'Waiting for finger on MAX30105',
   );
 }
-      return HealthResponse.fromJson(jsonData);
+
+return HealthResponse.fromJson(jsonData);
     } else {
       throw NetworkException(
         'ESP32 returned error: ${response.statusCode}',
