@@ -8,7 +8,9 @@ import 'api_constants.dart';
 import 'network_exception.dart';
 
 class ESPService {
-  // Check Connection  //
+  //======================
+  // Check Connection  
+  //=======================
 Future<bool> checkConnection() async {
   try {
     final response = await http
@@ -24,7 +26,9 @@ Future<bool> checkConnection() async {
     return false;
   }
 }
-  // PING ESP32   //
+  //===============
+  // PING ESP32   
+  //===============
   Future<bool> pingESP() async {
   try {
     final response = await http
@@ -43,7 +47,9 @@ Future<bool> checkConnection() async {
     return false;
   }
 }
-  // Get health Data  //
+  //=================
+  // Get health Data
+  //=================
   Future<HealthResponse> getHealthData() async {
   try {
     final response = await http
@@ -73,7 +79,9 @@ Future<bool> checkConnection() async {
     );
   }
 }
-// Send user Input  //
+  //=================
+// Send user Input  
+//===================
   Future<void> sendUserInput(UserInput input) async {
   try {
     final response = await http
