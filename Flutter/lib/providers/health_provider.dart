@@ -18,6 +18,40 @@ class HealthProvider extends ChangeNotifier {
   HealthResponse? _healthData;
 
   HealthResponse? get healthData => _healthData;
+  //===========================
+  // Load Health Data
+  //===========================
+  Future<void> loadHealthData() async {
 
+  _state = ApiState.loading(
+    'Reading health data...',
+  );
+
+  notifyListeners();
+
+
+  try {
+
+    final data = await _espService.getHealthData();
+
+    _healthData = data;
+
+
+    _state = ApiState.success(
+      'Health data received',
+    );
+
+
+  } catch (e) {
+
+    _state = ApiState.error(
+      e.toString(),
+    );
+
+  }
+
+
+  notifyListeners();
+}
 
 }
