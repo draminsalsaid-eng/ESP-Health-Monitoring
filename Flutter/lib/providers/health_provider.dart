@@ -9,22 +9,35 @@ import '../services/esp_service.dart';
 import '../services/network_exception.dart';
 
 
+
 class HealthProvider extends ChangeNotifier {
+
 
   final ESPService _espService = ESPService();
 
 
+
+  //===========================
   // Current API State
+  //===========================
+
   ApiState _state = ApiState.idle();
+
 
   ApiState get state => _state;
 
 
 
-  // Health Result
+  //===========================
+  // Health Data
+  //===========================
+
   HealthResponse? _healthData;
 
+
   HealthResponse? get healthData => _healthData;
+
+
 
 
 
@@ -35,17 +48,21 @@ class HealthProvider extends ChangeNotifier {
   Future<void> startMonitoring() async {
 
 
-    // Clear previous result
+    // Clear old result
 
     _healthData = null;
 
 
 
+    //===========================
     // Step 1 : Connect ESP32
+    //===========================
+
 
     _state = ApiState.connecting();
 
     notifyListeners();
+
 
 
     final connected =
@@ -55,11 +72,14 @@ class HealthProvider extends ChangeNotifier {
 
     if (!connected) {
 
+
       _state = ApiState.error(
-        'Cannot connect to ESP32',
+        'ESP32 disconnected. Check power and WiFi',
       );
 
+
       notifyListeners();
+
 
       return;
 
@@ -67,36 +87,55 @@ class HealthProvider extends ChangeNotifier {
 
 
 
-    // Step 2 : Waiting Finger
+
+
+    //===========================
+    // Step 2 : Waiting Sensor
+    //===========================
+
 
     _state = ApiState.waitingSensor();
+
 
     notifyListeners();
 
 
 
+
     const int maxAttempts = 30;
 
+
     int attempts = 0;
+
 
     bool measurementCompleted = false;
 
 
 
-    // Step 3 : Try Reading
+
+
+    //===========================
+    // Step 3 : Read Data Loop
+    //===========================
+
 
     while (attempts < maxAttempts) {
+
 
 
       attempts++;
 
 
+
       try {
+
 
 
         _state = ApiState.readingData();
 
+
         notifyListeners();
+
 
 
 
@@ -105,16 +144,24 @@ class HealthProvider extends ChangeNotifier {
 
 
 
+
+
         // Save Result
 
         _healthData = result;
+
 
 
         measurementCompleted = true;
 
 
 
+
+
+        //===========================
         // Step 4 : Success
+        //===========================
+
 
         _state = ApiState.success(
           'Health analysis completed',
@@ -124,6 +171,7 @@ class HealthProvider extends ChangeNotifier {
         notifyListeners();
 
 
+
         break;
 
 
@@ -131,11 +179,15 @@ class HealthProvider extends ChangeNotifier {
       }
 
 
+
       on NetworkException catch (e) {
 
 
 
-        // ESP32 returned {}
+        //===========================
+        // No Finger Detected
+        //===========================
+
 
         if (e.message.contains(
           'Waiting for finger',
@@ -147,6 +199,7 @@ class HealthProvider extends ChangeNotifier {
               ApiState.waitingSensor();
 
 
+
           notifyListeners();
 
 
@@ -156,13 +209,46 @@ class HealthProvider extends ChangeNotifier {
           );
 
 
+
           continue;
+
 
         }
 
 
 
+
+        //===========================
+        // ESP32 Disconnected
+        //===========================
+
+
+        if (e.message.contains(
+          'ESP32 disconnected',
+        )) {
+
+
+
+          _state = ApiState.error(
+            e.message,
+          );
+
+
+
+          notifyListeners();
+
+
+
+          break;
+
+
+        }
+
+
+
+
         // Other Network Errors
+
 
         _state = ApiState.error(
           e.message,
@@ -180,6 +266,7 @@ class HealthProvider extends ChangeNotifier {
 
 
 
+
       catch (_) {
 
 
@@ -189,7 +276,9 @@ class HealthProvider extends ChangeNotifier {
         );
 
 
+
         notifyListeners();
+
 
 
         break;
@@ -198,13 +287,21 @@ class HealthProvider extends ChangeNotifier {
       }
 
 
+
     }
 
 
 
-    // Step 5 : Timeout
 
-    if (!measurementCompleted) {
+
+    //===========================
+    // Step 5 : Timeout
+    //===========================
+
+
+    if (!measurementCompleted &&
+        _state.status != ApiStatus.error) {
+
 
 
       _state = ApiState.error(
