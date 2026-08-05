@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/api_state.dart';
 import '../models/health_response.dart';
+import '../models/user_input.dart';
 
 import '../services/esp_service.dart';
 import '../services/network_exception.dart';
@@ -17,8 +18,12 @@ class HealthProvider extends ChangeNotifier {
 
 
 
+  Timer? _monitorTimer;
+
+
+
   //===========================
-  // Current API State
+  // API State
   //===========================
 
   ApiState _state = ApiState.idle();
@@ -29,7 +34,7 @@ class HealthProvider extends ChangeNotifier {
 
 
   //===========================
-  // Health Data
+  // Health Result
   //===========================
 
   HealthResponse? _healthData;
@@ -40,252 +45,117 @@ class HealthProvider extends ChangeNotifier {
 
 
 
-
   //===========================
-  // Start Monitoring
+  // Start Monitoring Session
   //===========================
 
-  Future<void> startMonitoring() async {
-
-
-    // Clear old result
-
-    _healthData = null;
+  Future<void> startMonitoring(
+      UserInput userInput,
+  ) async {
 
 
 
-    //===========================
-    // Step 1 : Connect ESP32
-    //===========================
-
-
-    _state = ApiState.connecting();
-
-    notifyListeners();
+    try {
 
 
 
-    final connected =
-        await _espService.checkConnection();
+      _healthData = null;
 
 
 
-    if (!connected) {
+      //===========================
+      // Connecting
+      //===========================
 
-
-      _state = ApiState.error(
-        'ESP32 disconnected. Check power and WiFi',
-      );
+      _state =
+          ApiState.connecting();
 
 
       notifyListeners();
 
 
-      return;
+
+
+
+      final connected =
+          await _espService
+              .checkConnection();
+
+
+
+
+      if(!connected){
+
+
+        _state =
+            ApiState.error(
+
+              'ESP32 disconnected. Check WiFi',
+
+            );
+
+
+        notifyListeners();
+
+
+        return;
+
+      }
+
+
+
+
+
+      //===========================
+      // Send User Information
+      //===========================
+
+      await _espService
+          .sendUserInput(
+            userInput,
+          );
+
+
+
+
+
+      //===========================
+      // Waiting Finger
+      //===========================
+
+      _state =
+          ApiState.waitingSensor();
+
+
+      notifyListeners();
+
+
+
+
+
+
+      // Start Reading Loop
+
+      _startMonitoringLoop();
+
+
+
 
     }
 
 
 
 
+    on NetworkException catch(e){
 
-    //===========================
-    // Step 2 : Waiting Sensor
-    //===========================
 
-
-    _state = ApiState.waitingSensor();
-
-
-    notifyListeners();
-
-
-
-
-    const int maxAttempts = 30;
-
-
-    int attempts = 0;
-
-
-    bool measurementCompleted = false;
-
-
-
-
-
-    //===========================
-    // Step 3 : Read Data Loop
-    //===========================
-
-
-    while (attempts < maxAttempts) {
-
-
-
-      attempts++;
-
-
-
-      try {
-
-
-
-        _state = ApiState.readingData();
-
-
-        notifyListeners();
-
-
-
-
-        final result =
-            await _espService.getHealthData();
-
-
-
-
-
-        // Save Result
-
-        _healthData = result;
-
-
-
-        measurementCompleted = true;
-
-
-
-
-
-        //===========================
-        // Step 4 : Success
-        //===========================
-
-
-        _state = ApiState.success(
-          'Health analysis completed',
-        );
-
-
-        notifyListeners();
-
-
-
-        break;
-
-
-
-      }
-
-
-
-      on NetworkException catch (e) {
-
-
-
-        //===========================
-        // No Finger Detected
-        //===========================
-
-
-        if (e.message.contains(
-          'Waiting for finger',
-        )) {
-
-
-
-          _state =
-              ApiState.waitingSensor();
-
-
-
-          notifyListeners();
-
-
-
-          await Future.delayed(
-            const Duration(seconds: 1),
-          );
-
-
-
-          continue;
-
-
-        }
-
-
-
-
-        //===========================
-        // ESP32 Disconnected
-        //===========================
-
-
-        if (e.message.contains(
-          'ESP32 disconnected',
-        )) {
-
-
-
-          _state = ApiState.error(
+      _state =
+          ApiState.error(
             e.message,
           );
 
 
-
-          notifyListeners();
-
-
-
-          break;
-
-
-        }
-
-
-
-
-        // Other Network Errors
-
-
-        _state = ApiState.error(
-          e.message,
-        );
-
-
-        notifyListeners();
-
-
-        break;
-
-
-
-      }
-
-
-
-
-      catch (_) {
-
-
-
-        _state = ApiState.error(
-          'Unexpected error',
-        );
-
-
-
-        notifyListeners();
-
-
-
-        break;
-
-
-      }
-
+      notifyListeners();
 
 
     }
@@ -294,22 +164,146 @@ class HealthProvider extends ChangeNotifier {
 
 
 
-    //===========================
-    // Step 5 : Timeout
-    //===========================
-
-
-    if (!measurementCompleted &&
-        _state.status != ApiStatus.error) {
+  }
 
 
 
-      _state = ApiState.error(
-        'Measurement timeout. Please try again.',
-      );
+
+
+
+
+
+
+  //===========================
+  // Continuous Reading Loop
+  //===========================
+
+  void _startMonitoringLoop(){
+
+
+
+    _monitorTimer?.cancel();
+
+
+
+
+    _monitorTimer = Timer.periodic(
+
+      const Duration(seconds: 1),
+
+
+      (_) async {
+
+
+        await _readESPStatus();
+
+
+      },
+
+    );
+
+
+
+  }
+
+
+
+
+
+
+
+
+
+
+  //===========================
+  // Read ESP32 Status
+  //===========================
+
+  Future<void> _readESPStatus() async {
+
+
+    try {
+
+
+
+      final result =
+          await _espService
+              .readHealthStatus();
+
+
+
+
+      _healthData = result;
+
+
+
+
+
+
+      //===========================
+      // Final Result Received
+      //===========================
+
+
+      _state =
+          ApiState.success(
+
+            'Health analysis completed',
+
+          );
+
 
 
       notifyListeners();
+
+
+
+
+      stopMonitoring();
+
+
+
+    }
+
+
+
+    on NetworkException catch(e){
+
+
+
+      if(e.message.contains(
+        'Waiting',
+      )){
+
+
+        _state =
+            ApiState.waitingSensor();
+
+
+      }
+
+
+
+      else {
+
+
+        _state =
+            ApiState.error(
+
+              e.message,
+
+            );
+
+
+        stopMonitoring();
+
+
+      }
+
+
+
+      notifyListeners();
+
 
 
     }
@@ -317,5 +311,51 @@ class HealthProvider extends ChangeNotifier {
 
 
   }
+
+
+
+
+
+
+
+
+
+  //===========================
+  // Stop Monitoring
+  //===========================
+
+  void stopMonitoring(){
+
+
+
+    _monitorTimer?.cancel();
+
+
+    _monitorTimer = null;
+
+
+  }
+
+
+
+
+
+
+
+
+
+  @override
+  void dispose(){
+
+
+    stopMonitoring();
+
+
+    super.dispose();
+
+
+  }
+
+
 
 }
