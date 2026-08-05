@@ -1,4 +1,4 @@
-class UserInput {
+ class UserInput {
   final String userId;
   final String workerType;
   final String activity;
