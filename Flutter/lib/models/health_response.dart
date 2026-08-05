@@ -1,37 +1,65 @@
-import 'user_input.dart';
-import 'sensor_data.dart';
-import 'ai_result.dart';
-import 'esp_status.dart';
-
-
-
 class HealthResponse {
 
 
-  final ESPState espState;
+  final String userId;
+
+  final String workerType;
+
+  final String activity;
+
+  final String environment;
 
 
-  final UserInput? userInput;
+  final int heartRate;
+
+  final int spo2;
+
+  final double temperature;
 
 
-  final SensorData? sensorData;
+  final String aiStatus;
+
+  final String riskLevel;
+
+  final String aiMessage;
 
 
-  final AIResult? aiResult;
+
+
+  HealthResponse({
+
+
+    required this.userId,
+
+
+    required this.workerType,
+
+
+    required this.activity,
+
+
+    required this.environment,
 
 
 
+    required this.heartRate,
 
 
-  const HealthResponse({
+    required this.spo2,
 
-    required this.espState,
 
-    this.userInput,
+    required this.temperature,
 
-    this.sensorData,
 
-    this.aiResult,
+
+    required this.aiStatus,
+
+
+    required this.riskLevel,
+
+
+    required this.aiMessage,
+
 
   });
 
@@ -51,53 +79,199 @@ class HealthResponse {
     return HealthResponse(
 
 
-      espState:
 
-          ESPState.fromJson(
-            json,
-          ),
+      userId:
 
+      json['user_id'] ??
 
-
-
-      userInput:
-
-          json.containsKey('worker_type')
-
-              ? UserInput.fromJson(json)
-
-              : null,
+      '',
 
 
 
 
+      workerType:
 
-      sensorData:
+      json['worker_type'] ??
 
-          json.containsKey('HR')
-
-              ? SensorData.fromJson(json)
-
-              : null,
+      '',
 
 
 
 
 
-      aiResult:
+      activity:
 
-          json.containsKey('prediction')
+      json['activity'] ??
 
-              ? AIResult.fromJson(json)
+      '',
 
-              : null,
+
+
+
+
+
+      environment:
+
+      json['environment'] ??
+
+      '',
+
+
+
+
+
+
+
+      heartRate:
+
+      json['heart_rate'] ??
+
+      0,
+
+
+
+
+
+
+
+      spo2:
+
+      json['spo2'] ??
+
+      0,
+
+
+
+
+
+
+
+      temperature:
+
+
+      (json['temperature'] ?? 0)
+
+      .toDouble(),
+
+
+
+
+
+
+
+      aiStatus:
+
+
+      json['ai_status'] ??
+
+      'Waiting',
+
+
+
+
+
+
+
+      riskLevel:
+
+
+      json['risk_level'] ??
+
+      'Unknown',
+
+
+
+
+
+
+
+      aiMessage:
+
+
+      json['ai_message'] ??
+
+      '',
+
 
 
 
     );
 
 
+
   }
+
+
+
+
+
+
+
+
+  Map<String,dynamic> toJson(){
+
+
+
+    return {
+
+
+
+      "user_id":
+      userId,
+
+
+
+      "worker_type":
+      workerType,
+
+
+
+      "activity":
+      activity,
+
+
+
+      "environment":
+      environment,
+
+
+
+      "heart_rate":
+      heartRate,
+
+
+
+      "spo2":
+      spo2,
+
+
+
+      "temperature":
+      temperature,
+
+
+
+      "ai_status":
+      aiStatus,
+
+
+
+      "risk_level":
+      riskLevel,
+
+
+
+      "ai_message":
+      aiMessage,
+
+
+
+    };
+
+
+
+  }
+
 
 
 }
