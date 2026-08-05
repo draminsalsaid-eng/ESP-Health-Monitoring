@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import '../models/worker_data.dart';
+
 import '../models/api_state.dart';
 import '../models/health_response.dart';
 import '../models/user_input.dart';
@@ -11,10 +11,13 @@ import '../services/network_exception.dart';
 
 
 
+
 class HealthProvider extends ChangeNotifier {
 
 
-  final ESPService _espService = ESPService();
+
+  final ESPService _espService =
+      ESPService();
 
 
 
@@ -22,36 +25,52 @@ class HealthProvider extends ChangeNotifier {
 
 
 
-  //===========================
-  // API State
-  //===========================
-
-  ApiState _state = ApiState.idle();
 
 
-  ApiState get state => _state;
+  //================================
+  // API STATE
+  //================================
+
+
+  ApiState _state =
+      ApiState.idle();
 
 
 
-  //===========================
-  // Health Result
-  //===========================
+  ApiState get state =>
+      _state;
+
+
+
+
+
+
+  //================================
+  // HEALTH DATA
+  //================================
+
 
   HealthResponse? _healthData;
 
 
-  HealthResponse? get healthData => _healthData;
+
+  HealthResponse? get healthData =>
+      _healthData;
 
 
 
 
-  //===========================
-  // Start Monitoring Session
-  //===========================
+
+
+  //================================
+  // START MONITORING
+  //================================
+
 
   Future<void> startMonitoring(
+
       UserInput userInput,
-      WorkerData workerData,
+
   ) async {
 
 
@@ -64,15 +83,14 @@ class HealthProvider extends ChangeNotifier {
 
 
 
-      //===========================
-      // Connecting
-      //===========================
-
       _state =
           ApiState.connecting();
 
 
+
       notifyListeners();
+
+
 
 
 
@@ -85,13 +103,15 @@ class HealthProvider extends ChangeNotifier {
 
 
 
+
       if(!connected){
+
 
 
         _state =
             ApiState.error(
 
-              'ESP32 disconnected. Check WiFi',
+              'ESP32 disconnected',
 
             );
 
@@ -101,31 +121,36 @@ class HealthProvider extends ChangeNotifier {
 
         return;
 
+
       }
 
 
 
 
 
-      //===========================
-      // Send User Information
-      //===========================
+
+
+
+      // Send worker information
 
       await _espService
-    .sendUserInput(
-      userInput,
-    );
-await _espService
-    .sendWorkerConfig(
-      workerData,
-    );
+          .sendUserInput(
 
-      //===========================
-      // Waiting Finger
-      //===========================
+            userInput,
+
+          );
+
+
+
+
+
+
+
+
 
       _state =
           ApiState.waitingSensor();
+
 
 
       notifyListeners();
@@ -135,7 +160,6 @@ await _espService
 
 
 
-      // Start Reading Loop
 
       _startMonitoringLoop();
 
@@ -146,22 +170,23 @@ await _espService
 
 
 
-
     on NetworkException catch(e){
+
 
 
       _state =
           ApiState.error(
+
             e.message,
+
           );
+
 
 
       notifyListeners();
 
 
     }
-
-
 
 
 
@@ -175,9 +200,10 @@ await _espService
 
 
 
-  //===========================
-  // Continuous Reading Loop
-  //===========================
+  //================================
+  // PERIODIC READING
+  //================================
+
 
   void _startMonitoringLoop(){
 
@@ -188,20 +214,27 @@ await _espService
 
 
 
-    _monitorTimer = Timer.periodic(
 
-      const Duration(seconds: 1),
-
-
-      (_) async {
+    _monitorTimer =
+        Timer.periodic(
 
 
-        await _readESPStatus();
+          const Duration(seconds:1),
 
 
-      },
 
-    );
+          (_) async {
+
+
+
+            await _readESPStatus();
+
+
+
+          },
+
+
+        );
 
 
 
@@ -215,12 +248,13 @@ await _espService
 
 
 
+  //================================
+  // READ ESP32 STATUS
+  //================================
 
-  //===========================
-  // Read ESP32 Status
-  //===========================
 
   Future<void> _readESPStatus() async {
+
 
 
     try {
@@ -234,16 +268,13 @@ await _espService
 
 
 
-      _healthData = result;
+
+      _healthData =
+          result;
 
 
 
 
-
-
-      //===========================
-      // Final Result Received
-      //===========================
 
 
       _state =
@@ -255,7 +286,11 @@ await _espService
 
 
 
+
+
       notifyListeners();
+
+
 
 
 
@@ -264,7 +299,10 @@ await _espService
 
 
 
+
+
     }
+
 
 
 
@@ -272,20 +310,27 @@ await _espService
 
 
 
+
+
+
       if(e.message.contains(
-        'Waiting',
+          'Waiting'
       )){
+
 
 
         _state =
             ApiState.waitingSensor();
 
 
+
       }
 
 
 
+
       else {
+
 
 
         _state =
@@ -296,10 +341,15 @@ await _espService
             );
 
 
+
         stopMonitoring();
 
 
+
       }
+
+
+
 
 
 
@@ -307,7 +357,9 @@ await _espService
 
 
 
+
     }
+
 
 
 
@@ -321,9 +373,93 @@ await _espService
 
 
 
-  //===========================
-  // Stop Monitoring
-  //===========================
+  //================================
+  // GET LAST DATA
+  // Used by Dashboard
+  //================================
+
+
+  Future<void> getLatestHealthData() async {
+
+
+
+    try {
+
+
+
+      final result =
+          await _espService
+              .readHealthStatus();
+
+
+
+
+
+      _healthData =
+          result;
+
+
+
+
+
+
+      _state =
+          ApiState.success(
+
+            'Data updated',
+
+          );
+
+
+
+
+
+      notifyListeners();
+
+
+
+
+    }
+
+
+
+
+    on NetworkException catch(e){
+
+
+
+      _state =
+          ApiState.error(
+
+            e.message,
+
+          );
+
+
+
+      notifyListeners();
+
+
+
+    }
+
+
+
+
+  }
+
+
+
+
+
+
+
+
+
+  //================================
+  // STOP MONITORING
+  //================================
+
 
   void stopMonitoring(){
 
@@ -332,7 +468,10 @@ await _espService
     _monitorTimer?.cancel();
 
 
-    _monitorTimer = null;
+
+    _monitorTimer =
+        null;
+
 
 
   }
@@ -349,13 +488,18 @@ await _espService
   void dispose(){
 
 
+
     stopMonitoring();
+
 
 
     super.dispose();
 
 
+
   }
+
+
 
 
 
