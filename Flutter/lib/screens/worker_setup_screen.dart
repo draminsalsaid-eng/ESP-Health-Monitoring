@@ -1,22 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+
 import '../constants/worker_constants.dart';
-import '../providers/worker_provider.dart';
+
+import '../models/user_input.dart';
+
+import '../providers/auth_provider.dart';
+import '../providers/health_provider.dart';
+
 
 
 class WorkerSetupScreen extends StatefulWidget {
+
 
   const WorkerSetupScreen({
     super.key,
   });
 
 
+
   @override
   State<WorkerSetupScreen> createState() =>
       _WorkerSetupScreenState();
 
+
 }
+
+
 
 
 
@@ -24,11 +35,131 @@ class _WorkerSetupScreenState
     extends State<WorkerSetupScreen> {
 
 
-  String worker = workerTypes.first;
 
-  String activity = activities.first;
+  String worker =
+      workerTypes.first;
 
-  String environment = environments.first;
+
+
+  String activity =
+      activities.first;
+
+
+
+  String environment =
+      environments.first;
+
+
+
+
+
+  bool sending = false;
+
+
+
+
+
+
+  Future<void> _saveWorkerData() async {
+
+
+
+    final auth =
+        Provider.of<AuthProvider>(
+          context,
+          listen:false,
+        );
+
+
+
+
+    final health =
+        Provider.of<HealthProvider>(
+          context,
+          listen:false,
+        );
+
+
+
+
+
+    if(auth.userId == null){
+
+      return;
+
+    }
+
+
+
+
+
+    final input =
+        UserInput(
+
+          userId:
+              auth.userId!,
+
+
+          workerType:
+              worker,
+
+
+          activity:
+              activity,
+
+
+          environment:
+              environment,
+
+
+        );
+
+
+
+
+
+
+    setState(() {
+
+      sending = true;
+
+    });
+
+
+
+
+
+    await health.startMonitoring(
+      input,
+    );
+
+
+
+
+
+    if(mounted){
+
+
+      setState(() {
+
+        sending = false;
+
+      });
+
+
+    }
+
+
+
+
+
+  }
+
+
+
+
+
+
 
 
 
@@ -37,6 +168,7 @@ class _WorkerSetupScreenState
 
 
     return Scaffold(
+
 
 
       appBar: AppBar(
@@ -50,18 +182,27 @@ class _WorkerSetupScreenState
 
 
 
-      body: Padding(
 
+
+
+      body:
+
+      Padding(
 
         padding:
         const EdgeInsets.all(20),
 
 
 
-        child: Column(
+        child:
+
+        Column(
+
 
 
           children: [
+
+
 
 
 
@@ -72,16 +213,15 @@ class _WorkerSetupScreenState
               worker,
 
 
-
               items:
+
               workerTypes.map((e){
 
 
-                return DropdownMenuItem<String>(
+                return DropdownMenuItem(
 
 
-                  value:
-                  e,
+                  value:e,
 
 
                   child:
@@ -95,8 +235,7 @@ class _WorkerSetupScreenState
 
 
 
-              onChanged:
-              (value){
+              onChanged:(value){
 
 
                 setState(() {
@@ -114,6 +253,7 @@ class _WorkerSetupScreenState
 
 
               decoration:
+
               const InputDecoration(
 
 
@@ -133,9 +273,13 @@ class _WorkerSetupScreenState
 
 
 
+
+
             const SizedBox(
               height:20,
             ),
+
+
 
 
 
@@ -148,16 +292,15 @@ class _WorkerSetupScreenState
               activity,
 
 
-
               items:
+
               activities.map((e){
 
 
-                return DropdownMenuItem<String>(
+                return DropdownMenuItem(
 
 
-                  value:
-                  e,
+                  value:e,
 
 
                   child:
@@ -171,8 +314,8 @@ class _WorkerSetupScreenState
 
 
 
-              onChanged:
-              (value){
+
+              onChanged:(value){
 
 
                 setState(() {
@@ -190,6 +333,7 @@ class _WorkerSetupScreenState
 
 
               decoration:
+
               const InputDecoration(
 
 
@@ -210,9 +354,12 @@ class _WorkerSetupScreenState
 
 
 
+
+
             const SizedBox(
               height:20,
             ),
+
 
 
 
@@ -226,16 +373,15 @@ class _WorkerSetupScreenState
               environment,
 
 
-
               items:
+
               environments.map((e){
 
 
-                return DropdownMenuItem<String>(
+                return DropdownMenuItem(
 
 
-                  value:
-                  e,
+                  value:e,
 
 
                   child:
@@ -249,8 +395,8 @@ class _WorkerSetupScreenState
 
 
 
-              onChanged:
-              (value){
+
+              onChanged:(value){
 
 
                 setState(() {
@@ -268,6 +414,7 @@ class _WorkerSetupScreenState
 
 
               decoration:
+
               const InputDecoration(
 
 
@@ -288,7 +435,9 @@ class _WorkerSetupScreenState
 
 
 
+
             const Spacer(),
+
 
 
 
@@ -308,89 +457,30 @@ class _WorkerSetupScreenState
 
 
               child:
+
               ElevatedButton(
 
 
+
                 onPressed:
-                () {
-
-
-                  /*
-                    حفظ بيانات العامل
-                    داخل التطبيق
-                  */
-
-
-                  Provider.of<WorkerProvider>(
-
-                    context,
-
-                    listen:false,
-
-                  ).saveData(
-
-
-                    worker:
-                    worker,
-
-
-                    activityName:
-                    activity,
-
-
-                    environmentName:
-                    environment,
-
-
-                  );
-
-
-
-
-
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(
-
-
-                    const SnackBar(
-
-
-                      content:
-                      Text(
-                        "Worker information saved",
-                      ),
-
-
-                    ),
-
-
-                  );
-
-
-
-                  /*
-                    هنا لاحقاً سنضيف:
-                    إرسال البيانات إلى ESP32
-                  */
-
-
-
-                },
+                sending
+                ? null
+                : _saveWorkerData,
 
 
 
                 child:
+
+                sending
+
+                ?
+
+                const CircularProgressIndicator()
+
+                :
+
                 const Text(
-
-                  "Save & Continue",
-
-                  style:
-                  TextStyle(
-
-                    fontSize:18,
-
-                  ),
-
+                  "Save & Start Monitoring",
                 ),
 
 
@@ -398,7 +488,6 @@ class _WorkerSetupScreenState
 
 
             )
-
 
 
 
@@ -415,6 +504,7 @@ class _WorkerSetupScreenState
 
 
   }
+
 
 
 }
