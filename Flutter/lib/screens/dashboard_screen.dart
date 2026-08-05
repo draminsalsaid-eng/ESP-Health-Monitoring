@@ -1,97 +1,303 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-class DashboardScreen extends StatelessWidget {
+import '../providers/health_provider.dart';
 
-  const DashboardScreen({super.key});
+
+
+class DashboardScreen extends StatefulWidget {
+
+
+  const DashboardScreen({
+    super.key,
+  });
+
+
+
+  @override
+  State<DashboardScreen> createState() =>
+      _DashboardScreenState();
+
+}
+
+
+
+
+
+class _DashboardScreenState
+    extends State<DashboardScreen> {
+
+
+
+  @override
+  void initState(){
+
+    super.initState();
+
+
+    Future.microtask((){
+
+
+      Provider.of<HealthProvider>(
+        context,
+        listen:false,
+
+      ).getLatestHealthData();
+
+
+
+    });
+
+
+  }
+
+
+
 
 
   @override
   Widget build(BuildContext context) {
 
+
+
+    final health =
+        Provider.of<HealthProvider>(
+          context,
+        );
+
+
+
+
+
+    final data =
+        health.healthData;
+
+
+
+
+
     return Scaffold(
 
-      appBar: AppBar(
 
-        title: const Text(
+      appBar:
+      AppBar(
+
+        title:
+        const Text(
           "Health Dashboard",
         ),
 
-        centerTitle: true,
+        centerTitle:true,
 
       ),
 
 
-      body: Padding(
 
-        padding: const EdgeInsets.all(16.0),
 
-        child: Column(
+
+
+      body:
+
+
+      RefreshIndicator(
+
+
+        onRefresh: () async {
+
+
+          await health
+              .getLatestHealthData();
+
+
+        },
+
+
+
+        child:
+
+
+        ListView(
+
+
+          padding:
+          const EdgeInsets.all(16),
+
+
 
           children: [
 
-            VitalCard(
 
-              title: "Heart Rate",
 
-              value: "76 BPM",
-
-              icon: Icons.favorite,
-
-              color: Colors.red,
-
-            ),
 
 
             VitalCard(
 
-              title: "SpO₂",
+              title:
+              "Heart Rate",
 
-              value: "98 %",
+              value:
 
-              icon: Icons.water_drop,
+              data == null
 
-              color: Colors.blue,
+              ? "--"
+
+              :
+
+              "${data.heartRate} BPM",
+
+
+              icon:
+              Icons.favorite,
+
+
+              color:
+              Colors.red,
+
 
             ),
+
+
+
+
+
 
 
             VitalCard(
 
-              title: "Temperature",
+              title:
+              "SpO₂",
 
-              value: "36.8 °C",
+              value:
 
-              icon: Icons.thermostat,
+              data == null
 
-              color: Colors.orange,
+              ? "--"
+
+              :
+
+              "${data.spo2} %",
+
+
+              icon:
+              Icons.water_drop,
+
+
+              color:
+              Colors.blue,
+
 
             ),
+
+
+
+
+
 
 
             VitalCard(
 
-              title: "AI Status",
+              title:
+              "Temperature",
 
-              value: "Normal",
+              value:
 
-              icon: Icons.psychology,
+              data == null
 
-              color: Colors.green,
+              ? "--"
+
+              :
+
+              "${data.temperature} °C",
+
+
+              icon:
+              Icons.thermostat,
+
+
+              color:
+              Colors.orange,
+
 
             ),
+
+
+
+
+
+
+
+            VitalCard(
+
+              title:
+              "AI Status",
+
+              value:
+
+              data == null
+
+              ? "Waiting"
+
+              :
+
+              data.aiStatus,
+
+
+              icon:
+              Icons.psychology,
+
+
+              color:
+              Colors.green,
+
+
+            ),
+
+
+
+
+
+
+            const SizedBox(
+              height:20,
+            ),
+
+
+
+
+
+
+            if(data == null)
+
+              const Center(
+
+                child:
+                CircularProgressIndicator(),
+
+              )
+
 
 
           ],
 
+
         ),
+
+
 
       ),
 
+
+
     );
+
 
   }
 
+
 }
+
+
+
 
 
 
@@ -105,6 +311,7 @@ class VitalCard extends StatelessWidget {
   final IconData icon;
 
   final Color color;
+
 
 
 
@@ -124,69 +331,109 @@ class VitalCard extends StatelessWidget {
 
 
 
+
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context){
+
 
 
     return Card(
 
-      elevation: 4,
 
-      margin: const EdgeInsets.only(bottom: 15),
+      elevation:4,
 
 
-      child: ListTile(
+      margin:
+      const EdgeInsets.only(
+        bottom:15,
+      ),
 
-        leading: CircleAvatar(
 
-          backgroundColor: color,
 
-          child: Icon(
+      child:
+
+
+      ListTile(
+
+
+        leading:
+        CircleAvatar(
+
+
+          backgroundColor:
+          color,
+
+
+          child:
+          Icon(
 
             icon,
 
-            color: Colors.white,
+            color:
+            Colors.white,
 
           ),
+
 
         ),
 
 
-        title: Text(
+
+
+
+        title:
+        Text(
 
           title,
 
-          style: const TextStyle(
+          style:
+          const TextStyle(
 
-            fontSize: 18,
+            fontSize:18,
 
-            fontWeight: FontWeight.bold,
+            fontWeight:
+            FontWeight.bold,
 
           ),
 
         ),
 
 
-        trailing: Text(
+
+
+
+
+        trailing:
+        Text(
 
           value,
 
-          style: TextStyle(
+          style:
+          TextStyle(
 
-            fontSize: 18,
+            fontSize:18,
 
-            color: color,
+            color:
+            color,
 
-            fontWeight: FontWeight.bold,
+            fontWeight:
+            FontWeight.bold,
 
           ),
 
         ),
 
+
+
       ),
+
+
 
     );
 
+
   }
+
 
 }
