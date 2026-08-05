@@ -2,21 +2,19 @@ class UserInput {
   final String userId;
   final String workerType;
   final String activity;
-  final String workplace;
-
+  final String environment;
   UserInput({
     required this.userId,
     required this.workerType,
     required this.activity,
-    required this.workplace,
+    required this.environment,
   });
-
-  Map<String, dynamic> toJson() {
+  Map<String,dynamic> toJson(){
     return {
       "user_id": userId,
       "worker_type": workerType,
       "activity": activity,
-      "workplace": workplace,
+      "environment": environment,
     };
   }
 }
