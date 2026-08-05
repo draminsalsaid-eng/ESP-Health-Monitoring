@@ -8,31 +8,30 @@ import 'esp_status.dart';
 class HealthResponse {
 
 
-  final ESPStatus status;
-
-  final String message;
+  final ESPState espState;
 
 
-  final UserInput userInput;
+  final UserInput? userInput;
 
-  final SensorData sensorData;
 
-  final AIResult aiResult;
+  final SensorData? sensorData;
+
+
+  final AIResult? aiResult;
+
 
 
 
 
   const HealthResponse({
 
-    required this.status,
+    required this.espState,
 
-    required this.message,
+    this.userInput,
 
-    required this.userInput,
+    this.sensorData,
 
-    required this.sensorData,
-
-    required this.aiResult,
+    this.aiResult,
 
   });
 
@@ -40,70 +39,65 @@ class HealthResponse {
 
 
 
+
+
+
   factory HealthResponse.fromJson(
-      Map<String, dynamic> json) {
+      Map<String,dynamic> json,
+  ){
+
 
 
     return HealthResponse(
 
 
-      status:
-          parseESPStatus(
-            json['status'] ?? '',
+      espState:
+
+          ESPState.fromJson(
+            json,
           ),
 
 
 
-      message:
-          json['message'] ?? '',
-
-
 
       userInput:
-          UserInput.fromJson(json),
+
+          json.containsKey('worker_type')
+
+              ? UserInput.fromJson(json)
+
+              : null,
+
+
 
 
 
       sensorData:
-          SensorData.fromJson(json),
+
+          json.containsKey('HR')
+
+              ? SensorData.fromJson(json)
+
+              : null,
+
+
 
 
 
       aiResult:
-          AIResult.fromJson(json),
+
+          json.containsKey('prediction')
+
+              ? AIResult.fromJson(json)
+
+              : null,
+
 
 
     );
 
 
   }
-
-
-
-
-
-  bool get waitingFinger =>
-
-      status == ESPStatus.waitingFinger;
-
-
-
-  bool get measuring =>
-
-      status == ESPStatus.measuring;
-
-
-
-  bool get processingAI =>
-
-      status == ESPStatus.processingAI;
-
-
-
-  bool get completed =>
-
-      status == ESPStatus.completed;
-
 
 
 }
