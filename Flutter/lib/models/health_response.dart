@@ -1,13 +1,14 @@
 import 'user_input.dart';
 import 'sensor_data.dart';
 import 'ai_result.dart';
+import 'esp_status.dart';
 
 
 
 class HealthResponse {
 
 
-  final String status;
+  final ESPStatus status;
 
   final String message;
 
@@ -17,6 +18,7 @@ class HealthResponse {
   final SensorData sensorData;
 
   final AIResult aiResult;
+
 
 
 
@@ -46,7 +48,9 @@ class HealthResponse {
 
 
       status:
-          json['status'] ?? 'unknown',
+          parseESPStatus(
+            json['status'] ?? '',
+          ),
 
 
 
@@ -78,18 +82,27 @@ class HealthResponse {
 
 
 
-  bool get isMeasuring =>
-      status == 'measuring';
+  bool get waitingFinger =>
+
+      status == ESPStatus.waitingFinger;
 
 
 
-  bool get isProcessingAI =>
-      status == 'processing_ai';
+  bool get measuring =>
+
+      status == ESPStatus.measuring;
 
 
 
-  bool get isCompleted =>
-      status == 'completed';
+  bool get processingAI =>
+
+      status == ESPStatus.processingAI;
+
+
+
+  bool get completed =>
+
+      status == ESPStatus.completed;
 
 
 
