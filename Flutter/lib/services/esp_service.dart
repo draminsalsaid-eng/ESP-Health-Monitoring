@@ -9,7 +9,10 @@ import 'api_constants.dart';
 import 'network_exception.dart';
 
 
+
 class ESPService {
+
+
   //================================
   // Check ESP32 Connection
   //================================
@@ -18,16 +21,19 @@ class ESPService {
 
     try {
 
-      final response = await http
-          .get(
-            Uri.parse(
-              ApiConstants.baseUrl +
-              ApiConstants.health,
-            ),
-          )
-          .timeout(
-            ApiConstants.connectionTimeout,
-          );
+
+      final response =
+          await http
+              .get(
+                Uri.parse(
+                  ApiConstants.baseUrl +
+                  ApiConstants.health,
+                ),
+              )
+              .timeout(
+                ApiConstants.connectionTimeout,
+              );
+
 
 
       return response.statusCode == 200;
@@ -35,28 +41,47 @@ class ESPService {
 
     } catch (_) {
 
+
       return false;
+
 
     }
 
   }
+
+
+
+
+
+
   //================================
   // Ping ESP32
   //================================
+
   Future<bool> pingESP() async {
+
 
     try {
 
-      final response = await http
-          .get(
-            Uri.parse(
-              ApiConstants.baseUrl +
-              ApiConstants.health,
-            ),
-          )
-          .timeout(
-            const Duration(seconds: 5),
-          );
+
+      final response =
+          await http
+              .get(
+
+                Uri.parse(
+
+                  ApiConstants.baseUrl +
+                  ApiConstants.health,
+
+                ),
+
+              )
+              .timeout(
+
+                const Duration(seconds: 5),
+
+              );
+
 
 
       return response.statusCode == 200;
@@ -64,152 +89,86 @@ class ESPService {
 
     } catch (_) {
 
+
       return false;
 
-    }
-
-  }
-  //================================
-  // Get Health Data
-  //================================
-  Future<HealthResponse> getHealthData() async {
-    try {
-
-      final response = await http
-          .get(
-            Uri.parse(
-              ApiConstants.baseUrl +
-              ApiConstants.health,
-            ),
-          )
-          .timeout(
-            ApiConstants.receiveTimeout,
-          );
-
-
-
-      // ESP32 Response OK
-
-      if (response.statusCode == 200) {
-
-
-        final jsonData =
-            json.decode(response.body);
-
-
-
-        // No finger detected
-
-        if (jsonData is Map &&
-            jsonData.isEmpty) {
-
-
-          throw const NetworkException(
-            'Waiting for finger on MAX30105',
-          );
-
-        }
-
-
-
-        return HealthResponse.fromJson(
-          jsonData,
-        );
-
-
-      }
-
-
-
-      // ESP32 returned HTTP error
-
-      else {
-
-
-        throw NetworkException(
-          'ESP32 returned error: ${response.statusCode}',
-        );
-
-
-      }
-
-
-
-
-    }
-
-
-    // Connection lost / Power OFF / WiFi problem
-
-    on http.ClientException {
-
-
-      throw const NetworkException(
-        'ESP32 disconnected. Check power and WiFi',
-      );
-
-
-    }
-
-
-    on NetworkException {
-
-      rethrow;
-
-
-    }
-
-
-    catch (_) {
-
-
-      throw const NetworkException(
-        'ESP32 disconnected. Check power and WiFi',
-      );
-
 
     }
 
 
   }
+
+
+
+
+
+
+
   //================================
   // Send User Input
+  // Start ESP32 Measurement Session
   //================================
+
   Future<void> sendUserInput(
       UserInput input,
   ) async {
+
+
     try {
 
-      final response = await http
-          .post(
-            Uri.parse(
-              ApiConstants.baseUrl +
-              '/start',
-            ),
-            headers: {
-              'Content-Type':
-                  'application/json',
 
-            },
+      final response =
+          await http
+              .post(
 
+                Uri.parse(
 
-            body: json.encode(
-              input.toJson(),
-            ),
+                  ApiConstants.baseUrl +
+                  '/start',
 
-          )
-          .timeout(
-            ApiConstants.connectionTimeout,
-          );
+                ),
 
 
+                headers: {
 
 
-      if (response.statusCode != 200) {
+                  'Content-Type':
+                      'application/json',
+
+
+                },
+
+
+
+                body:
+
+                    json.encode(
+
+                      input.toJson(),
+
+                    ),
+
+
+
+              )
+              .timeout(
+
+                ApiConstants.connectionTimeout,
+
+              );
+
+
+
+
+
+
+      if(response.statusCode != 200) {
 
 
         throw const NetworkException(
-          'Failed to send user input',
+
+          'Failed to start ESP32 measurement',
+
         );
 
 
@@ -220,22 +179,191 @@ class ESPService {
     }
 
 
+
     on http.ClientException {
 
 
       throw const NetworkException(
-        'ESP32 disconnected. Check power and WiFi',
+
+        'ESP32 disconnected. Check WiFi',
+
       );
+
+
     }
+
+
+
     on NetworkException {
 
+
       rethrow;
+
+
     }
+
+
+
     catch (_) {
+
+
       throw const NetworkException(
-        'Cannot send data to ESP32',
+
+        'Cannot send user data to ESP32',
+
       );
+
+
     }
+
+
   }
+
+
+
+
+
+
+
+
+  //================================
+  // Read Current ESP32 Health Status
+  //
+  // Returns:
+  //
+  // waiting_finger
+  // measuring
+  // processing_ai
+  // completed
+  //
+  //================================
+
+  Future<HealthResponse> readHealthStatus() async {
+
+
+    try {
+
+
+
+      final response =
+          await http
+              .get(
+
+                Uri.parse(
+
+                  ApiConstants.baseUrl +
+                  ApiConstants.health,
+
+                ),
+
+              )
+              .timeout(
+
+                ApiConstants.receiveTimeout,
+
+              );
+
+
+
+
+
+
+
+      if(response.statusCode != 200) {
+
+
+        throw NetworkException(
+
+          'ESP32 returned error: '
+          '${response.statusCode}',
+
+        );
+
+
+      }
+
+
+
+
+
+
+      final jsonData =
+          json.decode(
+            response.body,
+          );
+
+
+
+
+
+
+      if(jsonData is Map) {
+
+
+        return HealthResponse.fromJson(
+
+          Map<String,dynamic>.from(
+
+            jsonData,
+
+          ),
+
+        );
+
+
+      }
+
+
+
+
+
+
+      throw const NetworkException(
+
+        'Invalid JSON response from ESP32',
+
+      );
+
+
+
+
+
+    }
+
+
+
+    on http.ClientException {
+
+
+      throw const NetworkException(
+
+        'ESP32 disconnected. Check WiFi',
+
+      );
+
+
+    }
+
+
+
+
+    on NetworkException {
+
+
+      rethrow;
+
+    }
+
+    catch (_) {
+
+      throw const NetworkException(
+
+        'Cannot read ESP32 health status',
+      );
+
+    }
+
+  }
+
 
 }
