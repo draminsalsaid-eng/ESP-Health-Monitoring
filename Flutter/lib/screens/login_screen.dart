@@ -73,16 +73,13 @@ class _LoginScreenState
 
     if(success && mounted){
 
-
-      Navigator.pushReplacement(
-        context,
-
-        MaterialPageRoute(
-          builder: (_) =>
-              const DashboardScreen(),
-        ),
-
-      );
+     Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(
+    builder: (_) =>
+        const HomeNavigation(),
+  ),
+);
 
 
     }
