@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-
 import '../constants/worker_constants.dart';
-
 import '../models/user_input.dart';
-
 import '../providers/auth_provider.dart';
-import '../providers/health_provider.dart';
+import '../services/esp_service.dart';
+
+import 'home_navigation.dart';
 
 
 
@@ -24,7 +23,6 @@ class WorkerSetupScreen extends StatefulWidget {
   State<WorkerSetupScreen> createState() =>
       _WorkerSetupScreenState();
 
-
 }
 
 
@@ -40,10 +38,8 @@ class _WorkerSetupScreenState
       workerTypes.first;
 
 
-
   String activity =
       activities.first;
-
 
 
   String environment =
@@ -51,72 +47,18 @@ class _WorkerSetupScreenState
 
 
 
-
-
   bool sending = false;
 
+
+
+  final ESPService espService =
+      ESPService();
 
 
 
 
 
   Future<void> _saveWorkerData() async {
-
-
-
-    final auth =
-        Provider.of<AuthProvider>(
-          context,
-          listen:false,
-        );
-
-
-
-
-    final health =
-        Provider.of<HealthProvider>(
-          context,
-          listen:false,
-        );
-
-
-
-
-
-    if(auth.userId == null){
-
-      return;
-
-    }
-
-
-
-
-
-    final input =
-        UserInput(
-
-          userId:
-              auth.userId!,
-
-
-          workerType:
-              worker,
-
-
-          activity:
-              activity,
-
-
-          environment:
-              environment,
-
-
-        );
-
-
-
-
 
 
     setState(() {
@@ -128,33 +70,155 @@ class _WorkerSetupScreenState
 
 
 
-
-    await health.startMonitoring(
-      input,
-    );
+    try {
 
 
 
+      final auth =
+          Provider.of<AuthProvider>(
+            context,
+            listen:false,
+          );
 
 
-    if(mounted){
 
 
-      setState(() {
 
-        sending = false;
+      final userInput =
+          UserInput(
 
-      });
+
+            userId:
+              auth.userId ?? "unknown",
+
+
+
+            workerType:
+              worker,
+
+
+
+            activity:
+              activity,
+
+
+
+            workplace:
+              environment,
+
+
+
+          );
+
+
+
+
+
+
+      await espService.sendUserInput(
+
+        userInput,
+
+      );
+
+
+
+
+
+
+      if(!mounted) return;
+
+
+
+
+
+      Navigator.pushReplacement(
+
+
+        context,
+
+
+        MaterialPageRoute(
+
+
+          builder: (_) =>
+              const HomeNavigation(),
+
+
+        ),
+
+
+      );
+
+
+
+
+
+
+    }
+
+
+    catch(e){
+
+
+
+      if(!mounted) return;
+
+
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+
+
+            SnackBar(
+
+
+              content:
+              Text(
+
+                "ESP32 Error : $e",
+
+              ),
+
+
+
+              backgroundColor:
+                  Colors.red,
+
+
+            ),
+
+
+          );
 
 
     }
 
 
 
+    finally{
+
+
+      if(mounted){
+
+
+        setState(() {
+
+
+          sending=false;
+
+
+        });
+
+
+      }
+
+
+    }
+
 
 
   }
-
 
 
 
@@ -171,12 +235,17 @@ class _WorkerSetupScreenState
 
 
 
-      appBar: AppBar(
+      appBar:
+      AppBar(
 
         title:
         const Text(
-          "Worker Information",
+
+          "Worker Setup",
+
         ),
+
+        centerTitle:true,
 
       ),
 
@@ -187,14 +256,18 @@ class _WorkerSetupScreenState
 
       body:
 
+
       Padding(
+
 
         padding:
         const EdgeInsets.all(20),
 
 
 
+
         child:
+
 
         Column(
 
@@ -213,25 +286,44 @@ class _WorkerSetupScreenState
               worker,
 
 
+
+              decoration:
+              const InputDecoration(
+
+                labelText:
+                "Worker Type",
+
+                border:
+                OutlineInputBorder(),
+
+              ),
+
+
+
+
               items:
 
-              workerTypes.map((e){
+              workerTypes.map((item){
+
 
 
                 return DropdownMenuItem(
 
 
-                  value:e,
+                  value:item,
 
 
                   child:
-                  Text(e),
+                  Text(item),
 
 
                 );
 
 
+
               }).toList(),
+
+
 
 
 
@@ -242,7 +334,7 @@ class _WorkerSetupScreenState
 
 
                   worker =
-                      value!;
+                  value!;
 
 
                 });
@@ -252,22 +344,6 @@ class _WorkerSetupScreenState
 
 
 
-              decoration:
-
-              const InputDecoration(
-
-
-                labelText:
-                "Worker Type",
-
-
-                border:
-                OutlineInputBorder(),
-
-
-              ),
-
-
             ),
 
 
@@ -275,10 +351,7 @@ class _WorkerSetupScreenState
 
 
 
-            const SizedBox(
-              height:20,
-            ),
-
+            const SizedBox(height:20),
 
 
 
@@ -292,54 +365,12 @@ class _WorkerSetupScreenState
               activity,
 
 
-              items:
-
-              activities.map((e){
-
-
-                return DropdownMenuItem(
-
-
-                  value:e,
-
-
-                  child:
-                  Text(e),
-
-
-                );
-
-
-              }).toList(),
-
-
-
-
-              onChanged:(value){
-
-
-                setState(() {
-
-
-                  activity =
-                      value!;
-
-
-                });
-
-
-              },
-
-
 
               decoration:
-
               const InputDecoration(
-
 
                 labelText:
                 "Activity",
-
 
                 border:
                 OutlineInputBorder(),
@@ -348,6 +379,53 @@ class _WorkerSetupScreenState
               ),
 
 
+
+
+
+              items:
+
+
+              activities.map((item){
+
+
+
+                return DropdownMenuItem(
+
+
+                  value:item,
+
+
+                  child:
+                  Text(item),
+
+
+                );
+
+
+
+              }).toList(),
+
+
+
+
+
+              onChanged:(value){
+
+
+
+                setState(() {
+
+
+                  activity =
+                  value!;
+
+
+                });
+
+
+              },
+
+
             ),
 
 
@@ -356,9 +434,8 @@ class _WorkerSetupScreenState
 
 
 
-            const SizedBox(
-              height:20,
-            ),
+            const SizedBox(height:20),
+
 
 
 
@@ -373,54 +450,12 @@ class _WorkerSetupScreenState
               environment,
 
 
-              items:
-
-              environments.map((e){
-
-
-                return DropdownMenuItem(
-
-
-                  value:e,
-
-
-                  child:
-                  Text(e),
-
-
-                );
-
-
-              }).toList(),
-
-
-
-
-              onChanged:(value){
-
-
-                setState(() {
-
-
-                  environment =
-                      value!;
-
-
-                });
-
-
-              },
-
-
 
               decoration:
-
               const InputDecoration(
-
 
                 labelText:
                 "Environment",
-
 
                 border:
                 OutlineInputBorder(),
@@ -429,7 +464,58 @@ class _WorkerSetupScreenState
               ),
 
 
+
+
+
+              items:
+
+
+              environments.map((item){
+
+
+
+                return DropdownMenuItem(
+
+
+                  value:item,
+
+
+                  child:
+                  Text(item),
+
+
+                );
+
+
+
+              }).toList(),
+
+
+
+
+
+
+              onChanged:(value){
+
+
+
+                setState(() {
+
+
+                  environment =
+                  value!;
+
+
+                });
+
+
+
+              },
+
+
+
             ),
+
 
 
 
@@ -446,17 +532,20 @@ class _WorkerSetupScreenState
             SizedBox(
 
 
+
               width:
               double.infinity,
 
 
 
               height:
-              50,
+              55,
+
 
 
 
               child:
+
 
               ElevatedButton(
 
@@ -475,36 +564,54 @@ class _WorkerSetupScreenState
 
                 ?
 
-                const CircularProgressIndicator()
+                const CircularProgressIndicator(
+                  color:Colors.white,
+                )
+
 
                 :
 
                 const Text(
-                  "Save & Start Monitoring",
+
+                  "SAVE & START",
+
+                  style:
+                  TextStyle(
+
+                    fontSize:18,
+
+                  ),
+
                 ),
 
 
+
               ),
+
 
 
             )
 
 
 
+
+
           ],
+
 
 
         ),
 
 
+
       ),
+
 
 
     );
 
 
   }
-
 
 
 }
