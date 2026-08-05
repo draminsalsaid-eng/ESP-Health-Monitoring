@@ -6,7 +6,7 @@ const List<String> workerTypes = [
   "experienced",
   "athlete",
   "heavy_worker",
-
+ 
 ];
 
 const List<String> activities = [
