@@ -5,6 +5,7 @@ import 'screens/splash_screen.dart';
 
 import 'providers/auth_provider.dart';
 import 'providers/health_provider.dart';
+import 'providers/worker_provider.dart';
 
 
 
@@ -53,6 +54,15 @@ class ESPHealthApp extends StatelessWidget {
 
           create: (_) =>
               HealthProvider(),
+
+        ),
+
+
+        // إضافة بيانات العامل
+        ChangeNotifierProvider(
+
+          create: (_) =>
+              WorkerProvider(),
 
         ),
 
