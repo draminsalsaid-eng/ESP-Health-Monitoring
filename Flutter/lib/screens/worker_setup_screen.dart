@@ -1,24 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../constants/worker_constants.dart';
 import '../models/user_input.dart';
-
 import '../providers/auth_provider.dart';
 import '../providers/health_provider.dart';
-
 import 'home_navigation.dart';
-
-
-
 class WorkerSetupScreen extends StatefulWidget {
 
+  final String userId;
 
-  const WorkerSetupScreen({
-    super.key,
-  });
-
-
+  const WorkerSetupScreen({super.key,required this.userId,});
 
   @override
   State<WorkerSetupScreen> createState() =>
