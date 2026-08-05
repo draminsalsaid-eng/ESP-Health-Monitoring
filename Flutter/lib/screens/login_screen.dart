@@ -105,47 +105,22 @@ class _LoginScreenState
       return;
 
     }
-
-
-
-
-
-
-
-    Navigator.pushReplacement(
-
-
-      context,
-
-
-      MaterialPageRoute(
-
-
-        builder: (_) =>
-
-            const WorkerSetupScreen(),
-
-
-      ),
-
-
-    );
+  Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(
+    builder: (_) =>
+        WorkerSetupScreen(
+          userId: userController.text.trim(),
+        ),
+  ),
+);
 
 
 
   }
 
-
-
-
-
-
-
-
-
   @override
   Widget build(BuildContext context) {
-
 
     final auth =
         Provider.of<AuthProvider>(
