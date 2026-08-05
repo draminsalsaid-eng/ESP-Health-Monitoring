@@ -1,11 +1,18 @@
- class UserInput {
+class UserInput {
+
+  final String userId;
 
   final String workerType;
+
   final String activity;
+
   final String environment;
 
 
+
   UserInput({
+
+    required this.userId,
 
     required this.workerType,
 
@@ -17,9 +24,11 @@
 
 
 
-  Map<String,dynamic> toJson(){
+  Map<String, dynamic> toJson() {
 
     return {
+
+      "user_id": userId,
 
       "worker_type": workerType,
 
@@ -31,5 +40,28 @@
 
   }
 
+
+
+  factory UserInput.fromJson(
+      Map<String, dynamic> json,
+  ) {
+
+    return UserInput(
+
+      userId:
+          json["user_id"] ?? "",
+
+      workerType:
+          json["worker_type"] ?? "",
+
+      activity:
+          json["activity"] ?? "",
+
+      environment:
+          json["environment"] ?? "",
+
+    );
+
+  }
 
 }
