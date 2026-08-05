@@ -3,8 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../constants/worker_constants.dart';
 import '../models/user_input.dart';
+
 import '../providers/auth_provider.dart';
-import '../services/esp_service.dart';
+import '../providers/health_provider.dart';
 
 import 'home_navigation.dart';
 
@@ -23,7 +24,9 @@ class WorkerSetupScreen extends StatefulWidget {
   State<WorkerSetupScreen> createState() =>
       _WorkerSetupScreenState();
 
+
 }
+
 
 
 
@@ -47,174 +50,129 @@ class _WorkerSetupScreenState
 
 
 
-  bool sending = false;
-
-
-
-  final ESPService espService =
-      ESPService();
+  bool loading = false;
 
 
 
 
 
-  Future<void> _saveWorkerData() async {
+
+  Future<void> _startMonitoring() async {
+
 
 
     setState(() {
 
-      sending = true;
+      loading = true;
 
     });
 
 
 
 
-    try {
 
+    final auth =
+        Provider.of<AuthProvider>(
+          context,
+          listen:false,
+        );
 
 
-      final auth =
-          Provider.of<AuthProvider>(
-            context,
-            listen:false,
-          );
 
 
 
+    final health =
+        Provider.of<HealthProvider>(
+          context,
+          listen:false,
+        );
 
 
-      final userInput =
-          UserInput(
 
 
-            userId:
-              auth.userId ?? "unknown",
 
 
+    final userInput =
+        UserInput(
 
-            workerType:
-              worker,
 
+          userId:
 
+          auth.userId ?? "unknown",
 
-            activity:
-              activity,
 
 
+          workerType:
 
-            workplace:
-              environment,
+          worker,
 
 
 
-          );
+          activity:
 
+          activity,
 
 
 
+          workplace:
 
+          environment,
 
-      await espService.sendUserInput(
 
-        userInput,
+        );
 
-      );
 
 
 
 
 
 
-      if(!mounted) return;
 
+    await health.startMonitoring(
 
+      userInput,
 
+    );
 
 
-      Navigator.pushReplacement(
 
 
-        context,
 
 
-        MaterialPageRoute(
 
 
-          builder: (_) =>
-              const HomeNavigation(),
+    if(!mounted) return;
 
 
-        ),
 
 
-      );
 
 
+    setState(() {
 
+      loading=false;
 
+    });
 
 
-    }
 
 
-    catch(e){
 
 
+    Navigator.pushReplacement(
 
-      if(!mounted) return;
+      context,
 
 
+      MaterialPageRoute(
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+        builder: (_) =>
+            const HomeNavigation(),
 
+      ),
 
-            SnackBar(
+    );
 
-
-              content:
-              Text(
-
-                "ESP32 Error : $e",
-
-              ),
-
-
-
-              backgroundColor:
-                  Colors.red,
-
-
-            ),
-
-
-          );
-
-
-    }
-
-
-
-    finally{
-
-
-      if(mounted){
-
-
-        setState(() {
-
-
-          sending=false;
-
-
-        });
-
-
-      }
-
-
-    }
 
 
 
@@ -227,8 +185,10 @@ class _WorkerSetupScreenState
 
 
 
+
   @override
   Widget build(BuildContext context) {
+
 
 
     return Scaffold(
@@ -236,6 +196,7 @@ class _WorkerSetupScreenState
 
 
       appBar:
+
       AppBar(
 
         title:
@@ -248,7 +209,6 @@ class _WorkerSetupScreenState
         centerTitle:true,
 
       ),
-
 
 
 
@@ -272,8 +232,8 @@ class _WorkerSetupScreenState
         Column(
 
 
+          children:[
 
-          children: [
 
 
 
@@ -283,6 +243,7 @@ class _WorkerSetupScreenState
 
 
               value:
+
               worker,
 
 
@@ -303,22 +264,20 @@ class _WorkerSetupScreenState
 
               items:
 
-              workerTypes.map((item){
-
+              workerTypes.map((e){
 
 
                 return DropdownMenuItem(
 
 
-                  value:item,
+                  value:e,
 
 
                   child:
-                  Text(item),
+                  Text(e),
 
 
                 );
-
 
 
               }).toList(),
@@ -333,8 +292,7 @@ class _WorkerSetupScreenState
                 setState(() {
 
 
-                  worker =
-                  value!;
+                  worker=value!;
 
 
                 });
@@ -351,7 +309,11 @@ class _WorkerSetupScreenState
 
 
 
-            const SizedBox(height:20),
+
+            const SizedBox(
+              height:20,
+            ),
+
 
 
 
@@ -362,6 +324,7 @@ class _WorkerSetupScreenState
 
 
               value:
+
               activity,
 
 
@@ -375,7 +338,6 @@ class _WorkerSetupScreenState
                 border:
                 OutlineInputBorder(),
 
-
               ),
 
 
@@ -384,23 +346,20 @@ class _WorkerSetupScreenState
 
               items:
 
-
-              activities.map((item){
-
+              activities.map((e){
 
 
                 return DropdownMenuItem(
 
 
-                  value:item,
+                  value:e,
 
 
                   child:
-                  Text(item),
+                  Text(e),
 
 
                 );
-
 
 
               }).toList(),
@@ -409,21 +368,21 @@ class _WorkerSetupScreenState
 
 
 
-              onChanged:(value){
 
+              onChanged:(value){
 
 
                 setState(() {
 
 
-                  activity =
-                  value!;
+                  activity=value!;
 
 
                 });
 
 
               },
+
 
 
             ),
@@ -434,7 +393,10 @@ class _WorkerSetupScreenState
 
 
 
-            const SizedBox(height:20),
+
+            const SizedBox(
+              height:20,
+            ),
 
 
 
@@ -447,6 +409,7 @@ class _WorkerSetupScreenState
 
 
               value:
+
               environment,
 
 
@@ -460,7 +423,6 @@ class _WorkerSetupScreenState
                 border:
                 OutlineInputBorder(),
 
-
               ),
 
 
@@ -469,23 +431,20 @@ class _WorkerSetupScreenState
 
               items:
 
-
-              environments.map((item){
-
+              environments.map((e){
 
 
                 return DropdownMenuItem(
 
 
-                  value:item,
+                  value:e,
 
 
                   child:
-                  Text(item),
+                  Text(e),
 
 
                 );
-
 
 
               }).toList(),
@@ -498,20 +457,16 @@ class _WorkerSetupScreenState
               onChanged:(value){
 
 
-
                 setState(() {
 
 
-                  environment =
-                  value!;
+                  environment=value!;
 
 
                 });
 
 
-
               },
-
 
 
             ),
@@ -529,8 +484,8 @@ class _WorkerSetupScreenState
 
 
 
-            SizedBox(
 
+            SizedBox(
 
 
               width:
@@ -543,29 +498,34 @@ class _WorkerSetupScreenState
 
 
 
-
               child:
-
 
               ElevatedButton(
 
 
 
                 onPressed:
-                sending
+
+                loading
+
                 ? null
-                : _saveWorkerData,
+
+                : _startMonitoring,
 
 
 
                 child:
 
-                sending
+
+                loading
+
 
                 ?
 
                 const CircularProgressIndicator(
+
                   color:Colors.white,
+
                 )
 
 
@@ -573,12 +533,13 @@ class _WorkerSetupScreenState
 
                 const Text(
 
-                  "SAVE & START",
+                  "SAVE & START MONITORING",
 
                   style:
+
                   TextStyle(
 
-                    fontSize:18,
+                    fontSize:17,
 
                   ),
 
@@ -591,7 +552,6 @@ class _WorkerSetupScreenState
 
 
             )
-
 
 
 
@@ -610,8 +570,8 @@ class _WorkerSetupScreenState
 
     );
 
-
   }
+
 
 
 }
