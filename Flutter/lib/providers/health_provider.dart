@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-
+import '../models/worker_data.dart';
 import '../models/api_state.dart';
 import '../models/health_response.dart';
 import '../models/user_input.dart';
@@ -51,6 +51,7 @@ class HealthProvider extends ChangeNotifier {
 
   Future<void> startMonitoring(
       UserInput userInput,
+      WorkerData workerData,
   ) async {
 
 
@@ -111,13 +112,13 @@ class HealthProvider extends ChangeNotifier {
       //===========================
 
       await _espService
-          .sendUserInput(
-            userInput,
-          );
-
-
-
-
+    .sendUserInput(
+      userInput,
+    );
+await _espService
+    .sendWorkerConfig(
+      workerData,
+    );
 
       //===========================
       // Waiting Finger
