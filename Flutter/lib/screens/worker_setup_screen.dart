@@ -1,15 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../constants/worker_constants.dart';
 import '../models/user_input.dart';
-import '../providers/auth_provider.dart';
 import '../providers/health_provider.dart';
+
 import 'home_navigation.dart';
+
+
+
 class WorkerSetupScreen extends StatefulWidget {
+
 
   final String userId;
 
-  const WorkerSetupScreen({super.key,required this.userId,});
+
+
+  const WorkerSetupScreen({
+
+    super.key,
+
+    required this.userId,
+
+  });
+
+
 
   @override
   State<WorkerSetupScreen> createState() =>
@@ -17,6 +32,7 @@ class WorkerSetupScreen extends StatefulWidget {
 
 
 }
+
 
 
 
@@ -32,8 +48,10 @@ class _WorkerSetupScreenState
       workerTypes.first;
 
 
+
   String activity =
       activities.first;
+
 
 
   String environment =
@@ -42,6 +60,8 @@ class _WorkerSetupScreenState
 
 
   bool loading = false;
+
+
 
 
 
@@ -62,21 +82,17 @@ class _WorkerSetupScreenState
 
 
 
-    final auth =
-        Provider.of<AuthProvider>(
-          context,
-          listen:false,
-        );
-
-
-
-
 
     final health =
         Provider.of<HealthProvider>(
+
           context,
+
           listen:false,
+
         );
+
+
 
 
 
@@ -89,7 +105,7 @@ class _WorkerSetupScreenState
 
           userId:
 
-          auth.userId ?? "unknown",
+          widget.userId,
 
 
 
@@ -105,9 +121,10 @@ class _WorkerSetupScreenState
 
 
 
-          workplace:
+          environment:
 
           environment,
+
 
 
         );
@@ -132,7 +149,9 @@ class _WorkerSetupScreenState
 
 
 
+
     if(!mounted) return;
+
 
 
 
@@ -141,7 +160,7 @@ class _WorkerSetupScreenState
 
     setState(() {
 
-      loading=false;
+      loading = false;
 
     });
 
@@ -150,24 +169,34 @@ class _WorkerSetupScreenState
 
 
 
+
     Navigator.pushReplacement(
+
 
       context,
 
 
       MaterialPageRoute(
 
+
         builder: (_) =>
+
             const HomeNavigation(),
 
+
       ),
+
 
     );
 
 
 
 
+
   }
+
+
+
 
 
 
@@ -190,16 +219,22 @@ class _WorkerSetupScreenState
 
       AppBar(
 
+
         title:
+
         const Text(
 
           "Worker Setup",
 
         ),
 
+
         centerTitle:true,
 
+
       ),
+
+
 
 
 
@@ -211,8 +246,11 @@ class _WorkerSetupScreenState
       Padding(
 
 
+
         padding:
+
         const EdgeInsets.all(20),
+
 
 
 
@@ -223,7 +261,10 @@ class _WorkerSetupScreenState
         Column(
 
 
+
           children:[
+
+
 
 
 
@@ -233,22 +274,35 @@ class _WorkerSetupScreenState
             DropdownButtonFormField<String>(
 
 
+
               value:
 
               worker,
 
 
 
+
+
               decoration:
+
               const InputDecoration(
 
+
+
                 labelText:
+
                 "Worker Type",
 
+
+
                 border:
+
                 OutlineInputBorder(),
 
+
+
               ),
+
 
 
 
@@ -258,17 +312,23 @@ class _WorkerSetupScreenState
               workerTypes.map((e){
 
 
+
                 return DropdownMenuItem(
+
 
 
                   value:e,
 
 
+
                   child:
+
                   Text(e),
 
 
+
                 );
+
 
 
               }).toList(),
@@ -277,19 +337,26 @@ class _WorkerSetupScreenState
 
 
 
+
+
               onChanged:(value){
+
 
 
                 setState(() {
 
 
-                  worker=value!;
+
+                  worker = value!;
+
 
 
                 });
 
 
+
               },
+
 
 
 
@@ -302,7 +369,9 @@ class _WorkerSetupScreenState
 
 
             const SizedBox(
+
               height:20,
+
             ),
 
 
@@ -314,20 +383,32 @@ class _WorkerSetupScreenState
             DropdownButtonFormField<String>(
 
 
+
               value:
 
               activity,
 
 
 
+
+
               decoration:
+
               const InputDecoration(
 
+
+
                 labelText:
+
                 "Activity",
 
+
+
                 border:
+
                 OutlineInputBorder(),
+
+
 
               ),
 
@@ -340,17 +421,23 @@ class _WorkerSetupScreenState
               activities.map((e){
 
 
+
                 return DropdownMenuItem(
+
 
 
                   value:e,
 
 
+
                   child:
+
                   Text(e),
 
 
+
                 );
+
 
 
               }).toList(),
@@ -360,24 +447,29 @@ class _WorkerSetupScreenState
 
 
 
+
               onChanged:(value){
+
 
 
                 setState(() {
 
 
-                  activity=value!;
+
+                  activity = value!;
+
 
 
                 });
+
 
 
               },
 
 
 
-            ),
 
+            ),
 
 
 
@@ -386,9 +478,10 @@ class _WorkerSetupScreenState
 
 
             const SizedBox(
-              height:20,
-            ),
 
+              height:20,
+
+            ),
 
 
 
@@ -399,20 +492,32 @@ class _WorkerSetupScreenState
             DropdownButtonFormField<String>(
 
 
+
               value:
 
               environment,
 
 
 
+
+
               decoration:
+
               const InputDecoration(
 
+
+
                 labelText:
+
                 "Environment",
 
+
+
                 border:
+
                 OutlineInputBorder(),
+
+
 
               ),
 
@@ -425,17 +530,23 @@ class _WorkerSetupScreenState
               environments.map((e){
 
 
+
                 return DropdownMenuItem(
+
 
 
                   value:e,
 
 
+
                   child:
+
                   Text(e),
 
 
+
                 );
+
 
 
               }).toList(),
@@ -445,19 +556,26 @@ class _WorkerSetupScreenState
 
 
 
+
               onChanged:(value){
+
 
 
                 setState(() {
 
 
-                  environment=value!;
+
+                  environment = value!;
+
 
 
                 });
 
 
+
               },
+
+
 
 
             ),
@@ -479,19 +597,26 @@ class _WorkerSetupScreenState
             SizedBox(
 
 
+
               width:
+
               double.infinity,
 
 
 
               height:
+
               55,
+
+
 
 
 
               child:
 
+
               ElevatedButton(
+
 
 
 
@@ -505,36 +630,68 @@ class _WorkerSetupScreenState
 
 
 
+
+
+
+
                 child:
 
 
                 loading
 
 
+
                 ?
+
+
 
                 const CircularProgressIndicator(
 
-                  color:Colors.white,
+
+                  color:
+
+                  Colors.white,
+
 
                 )
 
 
+
+
+
                 :
+
+
+
+
 
                 const Text(
 
+
+
                   "SAVE & START MONITORING",
+
+
+
 
                   style:
 
+
+
                   TextStyle(
+
+
 
                     fontSize:17,
 
+
+
                   ),
 
+
+
                 ),
+
 
 
 
@@ -543,6 +700,10 @@ class _WorkerSetupScreenState
 
 
             )
+
+
+
+
 
 
 
