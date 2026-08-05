@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
+import 'worker_setup_screen.dart';
 import '../providers/auth_provider.dart';
 import '../services/esp_service.dart';
 import '../models/user_input.dart';
@@ -87,11 +87,12 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const HomeNavigation(),
-        ),
-      );
+  context,
+  MaterialPageRoute(
+    builder: (_) => const WorkerSetupScreen(),
+  ),
+);
+      
     } catch (e) {
       if (!mounted) return;
 
