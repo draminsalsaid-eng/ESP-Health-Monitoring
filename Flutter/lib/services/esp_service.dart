@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -6,249 +7,284 @@ import '../models/esp_status.dart';
 import '../models/health_response.dart';
 import '../models/user_input.dart';
 
-import 'api_constants.dart';
-import 'network_exception.dart';
+class EspService {
+  final String baseUrl;
 
-class ESPService {
-// =========================================
-// CHECK ESP32 CONNECTION
-// =========================================
+  final Duration requestTimeout;
+  final Duration pollingInterval;
 
-Future<bool> checkConnection() async {
-try {
-final response = await http
-.get(
-Uri.parse(
-ApiConstants.baseUrl + ApiConstants.health,
-),
-)
-.timeout(
-ApiConstants.connectionTimeout,
-);
+  Timer? _pollingTimer;
 
-```
-  return response.statusCode == 200;
-} catch (_) {
-  return false;
-}
-```
+  bool _isPolling = false;
 
-}
+  EspService({
+    this.baseUrl = 'http://192.168.1.12',
+    this.requestTimeout = const Duration(seconds: 5),
+    this.pollingInterval = const Duration(milliseconds: 700),
+  });
 
-// =========================================
-// SEND USER / WORKER INPUT TO ESP32
-//
-// NOTE:
-// user_id is intentionally NOT sent to ESP32.
-// It remains inside Flutter.
-// =========================================
+  // ============================================================
+  // START MONITORING
+  // ============================================================
 
-Future<void> sendUserInput(
-UserInput input,
-) async {
-try {
-final response = await http
-.post(
-Uri.parse(
-ApiConstants.baseUrl + '/start',
-),
-headers: {
-'Content-Type': 'application/json',
-},
-body: jsonEncode(
-{
-'worker_type': input.workerType,
-'activity': input.activity,
-'environment': input.environment,
-},
-),
-)
-.timeout(
-ApiConstants.connectionTimeout,
-);
+  Future<bool> startMonitoring(UserInput userInput) async {
+    try {
+      final uri = Uri.parse('$baseUrl/start');
 
-```
-  if (response.statusCode != 200) {
-    throw NetworkException(
-      'ESP32 rejected worker information '
-      '(${response.statusCode})',
-    );
-  }
-} on http.ClientException {
-  throw const NetworkException(
-    'ESP32 WiFi connection failed',
-  );
-} on NetworkException {
-  rethrow;
-} catch (_) {
-  throw const NetworkException(
-    'Cannot send worker information',
-  );
-}
-```
+      final body = {
+        'user_id': userInput.userId,
+        'worker_type': userInput.workerType,
+        'activity': userInput.activity,
 
-}
+        // ESP32 currently expects "workplace"
+        'workplace': userInput.environment,
+      };
 
-// =========================================
-// READ RAW JSON FROM ESP32
-// =========================================
+      print('==========================================');
+      print('ESP32 START MONITORING');
+      print('URL: $uri');
+      print('DATA: ${jsonEncode(body)}');
+      print('==========================================');
 
-Future<Map<String, dynamic>> _readJson() async {
-try {
-final response = await http
-.get(
-Uri.parse(
-ApiConstants.baseUrl + ApiConstants.health,
-),
-)
-.timeout(
-ApiConstants.receiveTimeout,
-);
+      final response = await http
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(requestTimeout);
 
-```
-  if (response.statusCode != 200) {
-    throw NetworkException(
-      'ESP32 Error ${response.statusCode}',
-    );
+      print('ESP32 HTTP STATUS: ${response.statusCode}');
+      print('ESP32 RESPONSE: ${response.body}');
+
+      if (response.statusCode != 200) {
+        return false;
+      }
+
+      if (response.body.isEmpty) {
+        return true;
+      }
+
+      try {
+        final decoded = jsonDecode(response.body);
+
+        if (decoded is Map<String, dynamic>) {
+          return decoded['status']?.toString().toLowerCase() == 'ok';
+        }
+      } catch (_) {
+        // ESP32 may return a simple response.
+      }
+
+      return true;
+    } on TimeoutException {
+      print('ESP32 START ERROR: Connection timeout');
+      return false;
+    } catch (e) {
+      print('ESP32 START ERROR: $e');
+      return false;
+    }
   }
 
-  dynamic decoded;
+  // ============================================================
+  // GET ESP32 HEALTH / STATUS
+  // ============================================================
 
-  try {
-    decoded = jsonDecode(response.body);
-  } catch (_) {
-    throw const NetworkException(
-      'Invalid JSON from ESP32',
-    );
-  }
+  Future<Map<String, dynamic>?> getHealthJson() async {
+    try {
+      final uri = Uri.parse('$baseUrl/health');
 
-  if (decoded is! Map) {
-    throw const NetworkException(
-      'ESP32 returned invalid data',
-    );
-  }
+      final response = await http
+          .get(uri)
+          .timeout(requestTimeout);
 
-  return Map<String, dynamic>.from(decoded);
-} on http.ClientException {
-  throw const NetworkException(
-    'ESP32 disconnected',
-  );
-} on NetworkException {
-  rethrow;
-} catch (_) {
-  throw const NetworkException(
-    'Cannot read ESP32 data',
-  );
-}
-```
-
-}
-
-// =========================================
-// READ ESP32 STATE
-//
-// Returns null when the JSON does not contain
-// a "status" field.
-//
-// This is important because the final health
-// JSON does not necessarily need a status field.
-// =========================================
-
-Future<ESPState?> readESPState() async {
-final data = await _readJson();
-
-```
-if (!data.containsKey('status')) {
-  return null;
-}
-
-return ESPState.fromJson(data);
-```
-
-}
-
-// =========================================
-// READ FINAL HEALTH RESULT
-// =========================================
-
-Future<Map<String, dynamic>> readESPStatusJson() async {
-  try {
-    final response = await http.get(
-      Uri.parse(
-        ApiConstants.baseUrl +
-            ApiConstants.health,
-      ),
-    ).timeout(
-      ApiConstants.receiveTimeout,
-    );
-
-    if (response.statusCode != 200) {
-      throw NetworkException(
-        'ESP32 Error ${response.statusCode}',
+      print(
+        'ESP32 HEALTH STATUS: ${response.statusCode}',
       );
+
+      if (response.statusCode != 200) {
+        return null;
+      }
+
+      if (response.body.isEmpty) {
+        return null;
+      }
+
+      final decoded = jsonDecode(response.body);
+
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+
+      return null;
+    } on TimeoutException {
+      print('ESP32 HEALTH ERROR: Timeout');
+      return null;
+    } catch (e) {
+      print('ESP32 HEALTH ERROR: $e');
+      return null;
+    }
+  }
+
+  // ============================================================
+  // GET ESP STATE
+  // ============================================================
+
+  Future<ESPState?> getESPState() async {
+    final json = await getHealthJson();
+
+    if (json == null) {
+      return null;
     }
 
-    final data = jsonDecode(response.body);
+    return ESPState.fromJson(json);
+  }
 
-    if (data is Map) {
-      return Map<String, dynamic>.from(data);
+  // ============================================================
+  // GET FINAL HEALTH DATA
+  // ============================================================
+
+  Future<HealthResponse?> getHealthResponse() async {
+    final json = await getHealthJson();
+
+    if (json == null) {
+      return null;
     }
 
-    throw const NetworkException(
-      'Invalid JSON from ESP32',
+    final status =
+        json['status']?.toString().toLowerCase();
+
+    if (status != 'completed') {
+      return null;
+    }
+
+    try {
+      return HealthResponse.fromJson(json);
+    } catch (e) {
+      print(
+        'HEALTH RESPONSE PARSE ERROR: $e',
+      );
+
+      return null;
+    }
+  }
+
+  // ============================================================
+  // POLLING
+  // ============================================================
+
+  void startPolling({
+    required void Function(ESPState state) onStateChanged,
+    required void Function(HealthResponse response) onCompleted,
+    required void Function(String message) onError,
+  }) {
+    stopPolling();
+
+    _isPolling = true;
+
+    Future<void> poll() async {
+      if (!_isPolling) {
+        return;
+      }
+
+      final json = await getHealthJson();
+
+      if (!_isPolling) {
+        return;
+      }
+
+      if (json == null) {
+        onError(
+          'Unable to communicate with ESP32',
+        );
+        return;
+      }
+
+      try {
+        final espState =
+            ESPState.fromJson(json);
+
+        onStateChanged(espState);
+
+        // ==========================================
+        // FINAL RESULT
+        // ==========================================
+
+        if (espState.isCompleted) {
+          final healthResponse =
+              HealthResponse.fromJson(json);
+
+          stopPolling();
+
+          onCompleted(
+            healthResponse,
+          );
+
+          return;
+        }
+
+        // ==========================================
+        // ESP ERROR
+        // ==========================================
+
+        if (espState.isError) {
+          stopPolling();
+
+          onError(
+            espState.message,
+          );
+
+          return;
+        }
+      } catch (e) {
+        onError(
+          'Invalid response from ESP32',
+        );
+      }
+    }
+
+    poll();
+
+    _pollingTimer = Timer.periodic(
+      pollingInterval,
+      (_) {
+        poll();
+      },
     );
   }
 
-  on http.ClientException {
-    throw const NetworkException(
-      'ESP32 disconnected',
-    );
+  // ============================================================
+  // STOP POLLING
+  // ============================================================
+
+  void stopPolling() {
+    _isPolling = false;
+
+    _pollingTimer?.cancel();
+
+    _pollingTimer = null;
   }
 
-  on NetworkException {
-    rethrow;
+  // ============================================================
+  // CONNECTION TEST
+  // ============================================================
+
+  Future<bool> testConnection() async {
+    try {
+      final json = await getHealthJson();
+
+      return json != null;
+    } catch (_) {
+      return false;
+    }
   }
 
-  catch (_) {
-    throw const NetworkException(
-      'Cannot read ESP32 status',
-    );
+  // ============================================================
+  // DISPOSE
+  // ============================================================
+
+  void dispose() {
+    stopPolling();
   }
-}
-
-// =========================================
-// READ COMPLETE JSON
-//
-// Useful later for debugging, logging,
-// history, and testing.
-// =========================================
-
-Future<Map<String, dynamic>> readRawHealthJson() async {
-return _readJson();
-}
-
-// =========================================
-// OPTIONAL PING
-// =========================================
-
-Future<bool> pingESP() async {
-try {
-final response = await http
-.get(
-Uri.parse(
-ApiConstants.baseUrl + ApiConstants.health,
-),
-)
-.timeout(
-const Duration(seconds: 5),
-);
-
-```
-  return response.statusCode == 200;
-} catch (_) {
-  return false;
-}
-```
-
-}
 }
