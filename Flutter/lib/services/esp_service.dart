@@ -171,38 +171,49 @@ return ESPState.fromJson(data);
 // READ FINAL HEALTH RESULT
 // =========================================
 
-Future<HealthResponse> readHealthStatus() async {
-final data = await _readJson();
+Future<Map<String, dynamic>> readESPStatusJson() async {
+  try {
+    final response = await http.get(
+      Uri.parse(
+        ApiConstants.baseUrl +
+            ApiConstants.health,
+      ),
+    ).timeout(
+      ApiConstants.receiveTimeout,
+    );
 
-```
-// If ESP32 explicitly reports an error,
-// do not try to parse it as health data.
-final status = data['status']?.toString();
+    if (response.statusCode != 200) {
+      throw NetworkException(
+        'ESP32 Error ${response.statusCode}',
+      );
+    }
 
-if (status == 'error') {
-  throw NetworkException(
-    data['message']?.toString() ??
-        'ESP32 error',
-  );
-}
+    final data = jsonDecode(response.body);
 
-// A health result must contain at least
-// one of the main measurement / AI fields.
-final hasHealthData =
-    data.containsKey('HR') ||
-    data.containsKey('SpO2') ||
-    data.containsKey('prediction') ||
-    data.containsKey('risk_score');
+    if (data is Map) {
+      return Map<String, dynamic>.from(data);
+    }
 
-if (!hasHealthData) {
-  throw const NetworkException(
-    'Health data is not ready',
-  );
-}
+    throw const NetworkException(
+      'Invalid JSON from ESP32',
+    );
+  }
 
-return HealthResponse.fromJson(data);
-```
+  on http.ClientException {
+    throw const NetworkException(
+      'ESP32 disconnected',
+    );
+  }
 
+  on NetworkException {
+    rethrow;
+  }
+
+  catch (_) {
+    throw const NetworkException(
+      'Cannot read ESP32 status',
+    );
+  }
 }
 
 // =========================================
