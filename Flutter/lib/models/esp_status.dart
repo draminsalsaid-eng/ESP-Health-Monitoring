@@ -1,4 +1,4 @@
- enum ESPStatus {
+enum ESPStatus {
   idle,
   waitingFinger,
   measuring,
@@ -10,52 +10,75 @@
 class ESPState {
   final ESPStatus status;
   final String message;
+  final int? progress;
 
   const ESPState({
     required this.status,
     required this.message,
+    this.progress,
   });
 
   factory ESPState.fromJson(Map<String, dynamic> json) {
     final String value =
         (json['status'] ?? 'idle').toString().toLowerCase();
 
+    final String message =
+        json['message']?.toString() ?? 'Ready';
+
+    final int? progress =
+        (json['progress'] as num?)?.toInt();
+
     switch (value) {
+      case 'ready':
+        return ESPState(
+          status: ESPStatus.idle,
+          message: message,
+          progress: progress,
+        );
+
       case 'waiting_finger':
-        return const ESPState(
+        return ESPState(
           status: ESPStatus.waitingFinger,
-          message: 'Place your finger on MAX30105',
+          message: message,
+          progress: progress,
         );
 
       case 'measuring':
-        return const ESPState(
+        return ESPState(
           status: ESPStatus.measuring,
-          message: 'Reading sensor data...',
+          message: message,
+          progress: progress,
         );
 
+      case 'processing':
       case 'processing_ai':
-        return const ESPState(
+        return ESPState(
           status: ESPStatus.processingAI,
-          message: 'Analyzing health data...',
+          message: message,
+          progress: progress,
         );
 
       case 'completed':
-        return const ESPState(
+        return ESPState(
           status: ESPStatus.completed,
-          message: 'Health analysis completed',
+          message: message,
+          progress: 100,
         );
 
       case 'error':
+      case 'wifi_error':
+      case 'finger_removed':
         return ESPState(
           status: ESPStatus.error,
-          message:
-              json['message']?.toString() ?? 'ESP32 error',
+          message: message,
+          progress: progress,
         );
 
       default:
-        return const ESPState(
+        return ESPState(
           status: ESPStatus.idle,
-          message: 'Ready',
+          message: message,
+          progress: progress,
         );
     }
   }
