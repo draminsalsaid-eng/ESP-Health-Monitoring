@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../constants/worker_constants.dart';
 import '../models/user_input.dart';
 import '../providers/health_provider.dart';
-import '../services/esp_service.dart';
 
 import 'home_navigation.dart';
 
@@ -25,7 +24,7 @@ class _WorkerSetupScreenState
     extends State<WorkerSetupScreen> {
 
   // ============================================================
-  // SELECTED USER INFORMATION
+  // USER SELECTIONS
   // ============================================================
 
   String worker =
@@ -38,196 +37,97 @@ class _WorkerSetupScreenState
       environments.first;
 
   // ============================================================
-  // UI STATE
+  // LOCAL LOADING
   // ============================================================
 
   bool loading = false;
-
-  String? errorMessage;
-
-  // ============================================================
-  // ESP SERVICE
-  // ============================================================
-
-  late final EspService espService;
-
-  @override
-  void initState() {
-    super.initState();
-
-    espService = EspService(
-      baseUrl: 'http://192.168.1.12',
-    );
-  }
 
   // ============================================================
   // START MONITORING
   // ============================================================
 
   Future<void> _startMonitoring() async {
-
     if (loading) {
       return;
     }
 
     setState(() {
       loading = true;
-      errorMessage = null;
     });
 
-    try {
+    final health =
+        Provider.of<HealthProvider>(
+      context,
+      listen: false,
+    );
 
-      // ========================================================
-      // BUILD USER INPUT
-      // ========================================================
+    // ==========================================================
+    // CREATE USER INPUT
+    // ==========================================================
 
-      final userInput = UserInput(
+    final userInput = UserInput(
+      userId: widget.userId,
+      workerType: worker,
+      activity: activity,
+      environment: environment,
+    );
 
-        userId:
-            widget.userId,
+    // ==========================================================
+    // START ESP32 MONITORING
+    // ==========================================================
 
-        workerType:
-            worker,
+    final success =
+        await health.startMonitoring(
+      userInput,
+    );
 
-        activity:
-            activity,
+    if (!mounted) {
+      return;
+    }
 
-        environment:
-            environment,
-      );
+    setState(() {
+      loading = false;
+    });
 
-      print('==========================================');
-      print('STARTING MONITORING');
-      print('USER ID: ${userInput.userId}');
-      print('WORKER: ${userInput.workerType}');
-      print('ACTIVITY: ${userInput.activity}');
-      print('ENVIRONMENT: ${userInput.environment}');
-      print('==========================================');
+    // ==========================================================
+    // IF ESP32 CONNECTION FAILED
+    // ==========================================================
 
-      // ========================================================
-      // CONNECT TO ESP32
-      // ========================================================
-
-      final connected =
-          await espService.testConnection();
-
-      if (!connected) {
-
-        if (!mounted) {
-          return;
-        }
-
-        setState(() {
-          loading = false;
-          errorMessage =
-              'Unable to connect to ESP32.\n'
-              'Please check Wi-Fi connection.';
-        });
-
-        return;
-      }
-
-      // ========================================================
-      // SEND USER DATA TO ESP32
-      // ========================================================
-
-      final started =
-          await espService.startMonitoring(
-        userInput,
-      );
-
-      if (!started) {
-
-        if (!mounted) {
-          return;
-        }
-
-        setState(() {
-          loading = false;
-          errorMessage =
-              'ESP32 rejected the monitoring request.';
-        });
-
-        return;
-      }
-
-      // ========================================================
-      // ALSO UPDATE HEALTH PROVIDER
-      // ========================================================
-
-      if (!mounted) {
-        return;
-      }
-
-      final healthProvider =
-          Provider.of<HealthProvider>(
-        context,
-        listen: false,
-      );
-
-      /*
-       * Keep the selected worker information
-       * inside HealthProvider as well.
-       *
-       * This assumes your HealthProvider already
-       * contains startMonitoring(UserInput).
-       */
-
-      await healthProvider.startMonitoring(
-        userInput,
-      );
-
-      // ========================================================
-      // SUCCESS
-      // ========================================================
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        loading = false;
-      });
-
-      // ========================================================
-      // GO TO MAIN APPLICATION
-      // ========================================================
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              const HomeNavigation(),
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            health.state.message,
+          ),
+          backgroundColor: Colors.red,
         ),
       );
 
-    } catch (e) {
-
-      print(
-        'START MONITORING ERROR: $e',
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        loading = false;
-        errorMessage =
-            'An error occurred while starting monitoring.';
-      });
+      return;
     }
-  }
 
-  // ============================================================
-  // DISPOSE
-  // ============================================================
+    // ==========================================================
+    // SUCCESS
+    //
+    // At this point:
+    //
+    // Flutter
+    //    ↓
+    // ESP32 connected
+    //    ↓
+    // User data sent
+    //    ↓
+    // ESP32 waiting for finger
+    //
+    // ==========================================================
 
-  @override
-  void dispose() {
-    espService.dispose();
-
-    super.dispose();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            const HomeNavigation(),
+      ),
+    );
   }
 
   // ============================================================
@@ -241,48 +141,29 @@ class _WorkerSetupScreenState
     required ValueChanged<String?> onChanged,
     required IconData icon,
   }) {
-
     return DropdownButtonFormField<String>(
       value: value,
 
       decoration: InputDecoration(
         labelText: label,
-
-        prefixIcon: Icon(
-          icon,
-          color: Colors.blue,
-        ),
-
-        border:
-            const OutlineInputBorder(),
-
-        enabledBorder:
-            const OutlineInputBorder(),
-
-        focusedBorder:
-            const OutlineInputBorder(
-          borderSide: BorderSide(
-            color: Colors.blue,
-            width: 2,
-          ),
-        ),
+        prefixIcon: Icon(icon),
+        border: const OutlineInputBorder(),
       ),
 
       items: items.map(
         (item) {
-
           return DropdownMenuItem<String>(
             value: item,
-
             child: Text(
-              item,
+              item.replaceAll('_', ' '),
             ),
           );
         },
       ).toList(),
 
-      onChanged:
-          loading ? null : onChanged,
+      onChanged: loading
+          ? null
+          : onChanged,
     );
   }
 
@@ -292,108 +173,64 @@ class _WorkerSetupScreenState
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
       appBar: AppBar(
-
-        title:
-            const Text(
+        title: const Text(
           'Worker Setup',
         ),
-
-        centerTitle:
-            true,
+        centerTitle: true,
       ),
 
       body: SafeArea(
-
         child: Padding(
-
-          padding:
-              const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(20),
 
           child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.stretch,
 
             children: [
 
               // ==================================================
-              // USER INFORMATION
+              // HEADER
               // ==================================================
 
-              Card(
+              const Icon(
+                Icons.health_and_safety,
+                size: 70,
+                color: Colors.blue,
+              ),
 
-                elevation: 3,
+              const SizedBox(
+                height: 12,
+              ),
 
-                child: Padding(
+              const Text(
+                'Prepare Monitoring Session',
+                textAlign: TextAlign.center,
 
-                  padding:
-                      const EdgeInsets.all(16),
-
-                  child: Row(
-
-                    children: [
-
-                      const CircleAvatar(
-
-                        radius: 28,
-
-                        backgroundColor:
-                            Colors.blue,
-
-                        child: Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 30,
-                        ),
-                      ),
-
-                      const SizedBox(
-                        width: 15,
-                      ),
-
-                      Expanded(
-
-                        child: Column(
-
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-
-                          children: [
-
-                            const Text(
-                              'User ID',
-                              style:
-                                  TextStyle(
-                                color:
-                                    Colors.grey,
-                              ),
-                            ),
-
-                            const SizedBox(
-                              height: 4,
-                            ),
-
-                            Text(
-                              widget.userId,
-
-                              style:
-                                  const TextStyle(
-                                fontSize: 18,
-                                fontWeight:
-                                    FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
 
               const SizedBox(
-                height: 20,
+                height: 8,
+              ),
+
+              Text(
+                'User ID: ${widget.userId}',
+                textAlign: TextAlign.center,
+
+                style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 15,
+                ),
+              ),
+
+              const SizedBox(
+                height: 30,
               ),
 
               // ==================================================
@@ -401,22 +238,11 @@ class _WorkerSetupScreenState
               // ==================================================
 
               _buildDropdown(
-
-                label:
-                    'Worker Type',
-
-                value:
-                    worker,
-
-                items:
-                    workerTypes,
-
-                icon:
-                    Icons.person_outline,
-
-                onChanged:
-                    (value) {
-
+                label: 'Worker Type',
+                value: worker,
+                items: workerTypes,
+                icon: Icons.person,
+                onChanged: (value) {
                   if (value == null) {
                     return;
                   }
@@ -428,7 +254,7 @@ class _WorkerSetupScreenState
               ),
 
               const SizedBox(
-                height: 20,
+                height: 18,
               ),
 
               // ==================================================
@@ -436,22 +262,11 @@ class _WorkerSetupScreenState
               // ==================================================
 
               _buildDropdown(
-
-                label:
-                    'Activity',
-
-                value:
-                    activity,
-
-                items:
-                    activities,
-
-                icon:
-                    Icons.directions_run,
-
-                onChanged:
-                    (value) {
-
+                label: 'Activity',
+                value: activity,
+                items: activities,
+                icon: Icons.directions_run,
+                onChanged: (value) {
                   if (value == null) {
                     return;
                   }
@@ -463,30 +278,19 @@ class _WorkerSetupScreenState
               ),
 
               const SizedBox(
-                height: 20,
+                height: 18,
               ),
 
               // ==================================================
-              // WORKPLACE / ENVIRONMENT
+              // WORKPLACE
               // ==================================================
 
               _buildDropdown(
-
-                label:
-                    'Workplace / Environment',
-
-                value:
-                    environment,
-
-                items:
-                    environments,
-
-                icon:
-                    Icons.factory,
-
-                onChanged:
-                    (value) {
-
+                label: 'Workplace',
+                value: environment,
+                items: environments,
+                icon: Icons.factory,
+                onChanged: (value) {
                   if (value == null) {
                     return;
                   }
@@ -497,115 +301,94 @@ class _WorkerSetupScreenState
                 },
               ),
 
-              const SizedBox(
-                height: 20,
-              ),
+              const Spacer(),
 
               // ==================================================
-              // ERROR MESSAGE
+              // CURRENT SELECTION SUMMARY
               // ==================================================
 
-              if (errorMessage != null)
+              Card(
+                elevation: 2,
 
-                Container(
-
-                  width:
-                      double.infinity,
-
+                child: Padding(
                   padding:
-                      const EdgeInsets.all(12),
+                      const EdgeInsets.all(14),
 
-                  decoration:
-                      BoxDecoration(
-
-                    color:
-                        Colors.red.shade50,
-
-                    borderRadius:
-                        BorderRadius.circular(8),
-
-                    border:
-                        Border.all(
-                      color:
-                          Colors.red.shade200,
-                    ),
-                  ),
-
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
 
                     children: [
+                      const Text(
+                        'Monitoring Profile',
 
-                      const Icon(
-                        Icons.error_outline,
-                        color: Colors.red,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight:
+                              FontWeight.bold,
+                        ),
                       ),
 
                       const SizedBox(
-                        width: 10,
+                        height: 8,
                       ),
 
-                      Expanded(
+                      Text(
+                        'Worker: '
+                        '${worker.replaceAll('_', ' ')}',
+                      ),
 
-                        child: Text(
-                          errorMessage!,
+                      Text(
+                        'Activity: '
+                        '${activity.replaceAll('_', ' ')}',
+                      ),
 
-                          style:
-                              const TextStyle(
-                            color: Colors.red,
-                          ),
-                        ),
+                      Text(
+                        'Workplace: '
+                        '${environment.replaceAll('_', ' ')}',
                       ),
                     ],
                   ),
                 ),
+              ),
 
-              const Spacer(),
+              const SizedBox(
+                height: 15,
+              ),
 
               // ==================================================
-              // START BUTTON
+              // START MONITORING BUTTON
               // ==================================================
 
               SizedBox(
-
-                width:
-                    double.infinity,
-
-                height:
-                    58,
-
-                child:
-                    ElevatedButton.icon(
-
+                height: 58,
+                child: ElevatedButton.icon(
                   onPressed:
                       loading
                           ? null
                           : _startMonitoring,
 
-                  icon:
+                  icon: loading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
 
-                      loading
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child:
-                                  CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(
-                              Icons.play_arrow,
-                            ),
+                          child:
+                              CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.play_arrow,
+                        ),
 
-                  label:
-
-                      Text(
+                  label: Text(
                     loading
                         ? 'CONNECTING TO ESP32...'
                         : 'START MONITORING',
 
-                    style:
-                        const TextStyle(
+                    style: const TextStyle(
                       fontSize: 17,
                       fontWeight:
                           FontWeight.bold,
@@ -618,30 +401,16 @@ class _WorkerSetupScreenState
                 height: 10,
               ),
 
-              // ==================================================
-              // EXPLANATION
-              // ==================================================
-
               const Text(
+                'Press Start Monitoring to connect '
+                'to the ESP32 and begin the measurement session.',
 
-                'After starting monitoring, the ESP32 will '
-                'wait for you to place your finger on the sensor.',
+                textAlign: TextAlign.center,
 
-                textAlign:
-                    TextAlign.center,
-
-                style:
-                    TextStyle(
-                  color:
-                      Colors.grey,
-
-                  fontSize:
-                      13,
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
                 ),
-              ),
-
-              const SizedBox(
-                height: 10,
               ),
             ],
           ),
