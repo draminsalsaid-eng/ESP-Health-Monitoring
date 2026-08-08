@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'monitoring_home_screen.dart';
-import 'worker_setup_screen.dart';
 
 import '../providers/auth_provider.dart';
 
@@ -105,17 +104,14 @@ class _LoginScreenState
       return;
 
     }
-  Navigator.pushReplacement(
+ Navigator.pushReplacement(
   context,
   MaterialPageRoute(
-    builder: (_) =>
-        WorkerSetupScreen(
-          userId: userController.text.trim(),
-        ),
+    builder: (_) => MonitoringHomeScreen(
+      userId: userController.text.trim(),
+    ),
   ),
 );
-
-
 
   }
 
