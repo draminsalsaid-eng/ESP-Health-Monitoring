@@ -1,179 +1,133 @@
-
-
 class HealthResponse {
-// =========================================
-// WORKER / MEASUREMENT CONTEXT
-// =========================================
+  final String workerType;
+  final String activity;
+  final String environment;
 
-final String workerType;
-final String activity;
-final String environment;
+  final int heartRate;
+  final int hrv;
+  final int spo2;
 
-// =========================================
-// HEALTH SENSOR DATA
-// =========================================
+  final double environmentTemperature;
+  final double humidity;
 
-final int heartRate;
-final int hrv;
-final int spo2;
+  final int mq2;
+  final int mq5;
+  final int mq135;
 
-// =========================================
-// ENVIRONMENT SENSOR DATA
-// =========================================
+  final double accMag;
+  final double gyroMag;
 
-final double envTemp;
-final double humidity;
+  final String prediction;
+  final double riskScore;
+  final double environmentStress;
+  final double activityStress;
 
-final int mq2;
-final int mq5;
-final int mq135;
+  const HealthResponse({
+    required this.workerType,
+    required this.activity,
+    required this.environment,
+    required this.heartRate,
+    required this.hrv,
+    required this.spo2,
+    required this.environmentTemperature,
+    required this.humidity,
+    required this.mq2,
+    required this.mq5,
+    required this.mq135,
+    required this.accMag,
+    required this.gyroMag,
+    required this.prediction,
+    required this.riskScore,
+    required this.environmentStress,
+    required this.activityStress,
+  });
 
-// =========================================
-// MOTION DATA
-// =========================================
+  factory HealthResponse.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return HealthResponse(
+      workerType:
+          json['worker_type'] ?? '',
 
-final double accMag;
-final double gyroMag;
+      activity:
+          json['activity'] ?? '',
 
-// =========================================
-// AI RESULTS
-// =========================================
+      environment:
+          json['environment'] ?? '',
 
-final String prediction;
-final double riskScore;
-final double environmentStress;
-final double activityStress;
+      heartRate:
+          (json['HR'] as num?)?.toInt() ?? 0,
 
-const HealthResponse({
-required this.workerType,
-required this.activity,
-required this.environment,
-required this.heartRate,
-required this.hrv,
-required this.spo2,
-required this.envTemp,
-required this.humidity,
-required this.mq2,
-required this.mq5,
-required this.mq135,
-required this.accMag,
-required this.gyroMag,
-required this.prediction,
-required this.riskScore,
-required this.environmentStress,
-required this.activityStress,
-});
+      hrv:
+          (json['HRV'] as num?)?.toInt() ?? 0,
 
-// =========================================
-// FROM JSON
-// =========================================
+      spo2:
+          (json['SpO2'] as num?)?.toInt() ?? 0,
 
-factory HealthResponse.fromJson(
-Map<String, dynamic> json,
-) {
-return HealthResponse(
-workerType:
-json['worker_type']?.toString() ?? '',
+      environmentTemperature:
+          (json['env_temp'] as num?)?.toDouble() ?? 0,
 
-```
-  activity:
-      json['activity']?.toString() ?? '',
+      humidity:
+          (json['humidity'] as num?)?.toDouble() ?? 0,
 
-  environment:
-      json['environment']?.toString() ?? '',
+      mq2:
+          (json['MQ2'] as num?)?.toInt() ?? 0,
 
-  heartRate:
-      (json['HR'] as num?)?.toInt() ?? 0,
+      mq5:
+          (json['MQ5'] as num?)?.toInt() ?? 0,
 
-  hrv:
-      (json['HRV'] as num?)?.toInt() ?? 0,
+      mq135:
+          (json['MQ135'] as num?)?.toInt() ?? 0,
 
-  spo2:
-      (json['SpO2'] as num?)?.toInt() ?? 0,
+      accMag:
+          (json['acc_mag'] as num?)?.toDouble() ?? 0,
 
-  envTemp:
-      (json['env_temp'] as num?)?.toDouble() ?? 0.0,
+      gyroMag:
+          (json['gyro_mag'] as num?)?.toDouble() ?? 0,
 
-  humidity:
-      (json['humidity'] as num?)?.toDouble() ?? 0.0,
+      prediction:
+          json['prediction'] ?? '',
 
-  mq2:
-      (json['MQ2'] as num?)?.toInt() ?? 0,
+      riskScore:
+          (json['risk_score'] as num?)?.toDouble() ?? 0,
 
-  mq5:
-      (json['MQ5'] as num?)?.toInt() ?? 0,
+      environmentStress:
+          (json['environment_stress'] ??
+                  json['env_stress'] ??
+                  0)
+              .toDouble(),
 
-  mq135:
-      (json['MQ135'] as num?)?.toInt() ?? 0,
+      activityStress:
+          (json['activity_stress'] ??
+                  0)
+              .toDouble(),
+    );
+  }
 
-  accMag:
-      (json['acc_mag'] as num?)?.toDouble() ?? 0.0,
+  Map<String, dynamic> toJson() {
+    return {
+      "worker_type": workerType,
+      "activity": activity,
+      "environment": environment,
 
-  gyroMag:
-      (json['gyro_mag'] as num?)?.toDouble() ?? 0.0,
+      "HR": heartRate,
+      "HRV": hrv,
+      "SpO2": spo2,
 
-  prediction:
-      json['prediction']?.toString() ?? '',
+      "env_temp": environmentTemperature,
+      "humidity": humidity,
 
-  riskScore:
-      (json['risk_score'] as num?)?.toDouble() ?? 0.0,
+      "MQ2": mq2,
+      "MQ5": mq5,
+      "MQ135": mq135,
 
-  environmentStress:
-      (json['environment_stress'] as num?)?.toDouble() ??
-          0.0,
+      "acc_mag": accMag,
+      "gyro_mag": gyroMag,
 
-  activityStress:
-      (json['activity_stress'] as num?)?.toDouble() ??
-          0.0,
-);
-```
-
-}
-
-// =========================================
-// TO JSON
-// =========================================
-
-Map<String, dynamic> toJson() {
-return {
-'worker_type': workerType,
-'activity': activity,
-'environment': environment,
-
-```
-  'HR': heartRate,
-  'HRV': hrv,
-  'SpO2': spo2,
-
-  'env_temp': envTemp,
-  'humidity': humidity,
-
-  'MQ2': mq2,
-  'MQ5': mq5,
-  'MQ135': mq135,
-
-  'acc_mag': accMag,
-  'gyro_mag': gyroMag,
-
-  'prediction': prediction,
-  'risk_score': riskScore,
-  'environment_stress': environmentStress,
-  'activity_stress': activityStress,
-};
-```
-
-}
-
-// =========================================
-// HELPER
-// =========================================
-
-bool get isSafe =>
-prediction.toLowerCase() == 'green';
-
-bool get isWarning =>
-prediction.toLowerCase() == 'yellow';
-
-bool get isDanger =>
-prediction.toLowerCase() == 'red';
+      "prediction": prediction,
+      "risk_score": riskScore,
+      "environment_stress": environmentStress,
+      "activity_stress": activityStress,
+    };
+  }
 }
