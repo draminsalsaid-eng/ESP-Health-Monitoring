@@ -11,351 +11,259 @@ import '../services/esp_service.dart';
 import '../services/network_exception.dart';
 
 class HealthProvider extends ChangeNotifier {
-final ESPService _espService = ESPService();
+  final ESPService _espService = ESPService();
 
-Timer? _monitorTimer;
+  Timer? _monitorTimer;
 
-// =========================================
-// API / MONITORING STATE
-// =========================================
+  //================================
+  // API STATE
+  //================================
 
-ApiState _state = ApiState.idle();
+  ApiState _state = ApiState.idle();
 
-ApiState get state => _state;
+  ApiState get state => _state;
 
-// =========================================
-// ESP32 STATE
-// =========================================
+  //================================
+  // ESP STATE
+  //================================
 
-ESPState _espState = const ESPState(
-status: ESPStatus.idle,
-message: 'Ready',
-);
-
-ESPState get espState => _espState;
-
-// =========================================
-// FINAL HEALTH DATA
-// =========================================
-
-HealthResponse? _healthData;
-
-HealthResponse? get healthData => _healthData;
-
-// =========================================
-// CURRENT USER INPUT
-//
-// User ID remains inside Flutter.
-// =========================================
-
-UserInput? _currentInput;
-
-UserInput? get currentInput => _currentInput;
-
-// =========================================
-// START MONITORING
-// =========================================
-
-Future<void> startMonitoring(
-UserInput userInput,
-) async {
-try {
-stopMonitoring();
-
-```
-  _healthData = null;
-  _currentInput = userInput;
-
-  // ---------------------------------------
-  // STEP 1 - CONNECTING
-  // ---------------------------------------
-
-  _setApiState(
-    ApiState.connecting(),
+  ESPState _espState = const ESPState(
+    status: ESPStatus.idle,
+    message: 'Press Start Monitoring',
   );
 
-  _setESPState(
-    const ESPState(
-      status: ESPStatus.idle,
-      message: 'Connecting to ESP32...',
-    ),
-  );
+  ESPState get espState => _espState;
 
-  final connected =
-      await _espService.checkConnection();
+  //================================
+  // HEALTH DATA
+  //================================
 
-  if (!connected) {
-    _setError(
-      'ESP32 disconnected',
-    );
-    return;
-  }
+  HealthResponse? _healthData;
 
-  // ---------------------------------------
-  // STEP 2 - SEND WORKER INFORMATION
-  // ---------------------------------------
+  HealthResponse? get healthData => _healthData;
 
-  _setApiState(
-    ApiState.waitingSensor(),
-  );
+  //================================
+  // START MONITORING
+  //================================
 
-  await _espService.sendUserInput(
-    userInput,
-  );
+  Future<bool> startMonitoring(
+    UserInput userInput,
+  ) async {
+    try {
+      _healthData = null;
 
-  // ---------------------------------------
-  // STEP 3 - WAIT FOR MEASUREMENT
-  // ---------------------------------------
+      _state = ApiState.connecting();
 
-  _setESPState(
-    const ESPState(
-      status: ESPStatus.waitingFinger,
-      message: 'Place your finger on MAX30105',
-    ),
-  );
+      _espState = const ESPState(
+        status: ESPStatus.idle,
+        message: 'Connecting to ESP32...',
+      );
 
-  _setApiState(
-    ApiState.waitingSensor(),
-  );
+      notifyListeners();
 
-  // ---------------------------------------
-  // STEP 4 - START POLLING
-  // ---------------------------------------
+      // Check ESP32 connection
+      final connected =
+          await _espService.checkConnection();
 
-  _startMonitoringLoop();
-} on NetworkException catch (e) {
-  _setError(e.message);
-} catch (_) {
-  _setError(
-    'Unexpected monitoring error',
-  );
-}
-```
-
-}
-
-// =========================================
-// MONITORING LOOP
-// =========================================
-
-void _startMonitoringLoop() {
-_monitorTimer?.cancel();
-
-```
-// Read immediately instead of waiting
-// for the first one-second interval.
-_readESPStatus();
-
-_monitorTimer = Timer.periodic(
-  const Duration(seconds: 1),
-  (_) {
-    _readESPStatus();
-  },
-);
-```
-
-}
-
-// =========================================
-// READ ESP32 STATUS / HEALTH
-// =========================================
-
-Future<void> _readESPStatus() async {
-try {
-// ---------------------------------------
-// First try to read ESP32 state.
-// ---------------------------------------
-
-```
-  final espState =
-      await _espService.readESPState();
-
-  if (espState != null) {
-    _setESPState(espState);
-
-    switch (espState.status) {
-      case ESPStatus.idle:
-        _setApiState(
-          ApiState.idle(),
+      if (!connected) {
+        _state = ApiState.error(
+          'ESP32 disconnected',
         );
-        break;
 
-      case ESPStatus.waitingFinger:
-        _setApiState(
-          ApiState.waitingSensor(),
+        _espState = const ESPState(
+          status: ESPStatus.error,
+          message: 'ESP32 disconnected',
         );
-        break;
 
-      case ESPStatus.measuring:
-        _setApiState(
-          ApiState.readingData(),
-        );
-        break;
+        notifyListeners();
 
-      case ESPStatus.processingAI:
-        _setApiState(
-          ApiState.processingAI(),
-        );
-        break;
+        return false;
+      }
 
-      case ESPStatus.completed:
-        await _readFinalHealthData();
-        break;
+      // Send worker information
+      await _espService.sendUserInput(
+        userInput,
+      );
 
-      case ESPStatus.error:
-        _setError(
-          espState.message,
-        );
-        break;
+      _state = ApiState.waitingSensor();
+
+      _espState = const ESPState(
+        status: ESPStatus.waitingFinger,
+        message:
+            'Place your finger on MAX30105 and MAX30205',
+      );
+
+      notifyListeners();
+
+      // Start reading ESP32 states
+      _startMonitoringLoop();
+
+      return true;
     }
 
-    return;
+    on NetworkException catch (e) {
+      _state = ApiState.error(
+        e.message,
+      );
+
+      _espState = ESPState(
+        status: ESPStatus.error,
+        message: e.message,
+      );
+
+      notifyListeners();
+
+      return false;
+    }
   }
 
-  // ---------------------------------------
-  // No status field:
-  // try to detect final health JSON.
-  // ---------------------------------------
+  //================================
+  // MONITORING LOOP
+  //================================
 
-  await _readFinalHealthData();
-} on NetworkException catch (e) {
-  // During measurement the ESP32 may temporarily
-  // not have the final data ready.
-  //
-  // We do not immediately destroy the workflow
-  // for a temporary "not ready" response.
+  void _startMonitoringLoop() {
+    _monitorTimer?.cancel();
 
-  if (e.message == 'Health data is not ready') {
-    return;
+    _monitorTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) async {
+        await _readESPStatus();
+      },
+    );
   }
 
-  _setError(e.message);
-} catch (_) {
-  _setError(
-    'Cannot read ESP32 status',
-  );
-}
-```
+  //================================
+  // READ ESP32 STATUS
+  //================================
 
-}
+  Future<void> _readESPStatus() async {
+    try {
+      final data =
+          await _espService.readESPStatusJson();
 
-// =========================================
-// READ FINAL HEALTH DATA
-// =========================================
+      final espState =
+          ESPState.fromJson(data);
 
-Future<void> _readFinalHealthData() async {
-try {
-_setApiState(
-ApiState.processingAI(),
-);
+      _espState = espState;
 
-```
-  final result =
-      await _espService.readHealthStatus();
+      //================================
+      // WAITING FOR FINGER
+      //================================
 
-  _healthData = result;
+      if (espState.isWaitingFinger) {
+        _state =
+            ApiState.waitingSensor();
+      }
 
-  _setESPState(
-    const ESPState(
-      status: ESPStatus.completed,
-      message: 'Health analysis completed',
-    ),
-  );
+      //================================
+      // MEASURING
+      //================================
 
-  _setApiState(
-    ApiState.success(
-      'Health analysis completed',
-    ),
-  );
+      else if (espState.isMeasuring) {
+        _state =
+            ApiState.readingData();
+      }
 
-  stopMonitoring();
-} on NetworkException catch (e) {
-  if (e.message == 'Health data is not ready') {
-    return;
+      //================================
+      // PROCESSING AI
+      //================================
+
+      else if (espState.isProcessingAI) {
+        _state =
+            ApiState.processingAI();
+      }
+
+      //================================
+      // COMPLETED
+      //================================
+
+      else if (espState.isCompleted) {
+        _state = ApiState.success(
+          'Health analysis completed',
+        );
+
+        // The completed JSON contains
+        // the complete health report.
+        if (data.containsKey('HR') &&
+            data.containsKey('SpO2')) {
+          _healthData =
+              HealthResponse.fromJson(data);
+        }
+
+        stopMonitoring();
+      }
+
+      //================================
+      // ERROR
+      //================================
+
+      else if (espState.isError) {
+        _state = ApiState.error(
+          espState.message,
+        );
+
+        stopMonitoring();
+      }
+
+      notifyListeners();
+    }
+
+    on NetworkException catch (e) {
+      _state = ApiState.error(
+        e.message,
+      );
+
+      _espState = ESPState(
+        status: ESPStatus.error,
+        message: e.message,
+      );
+
+      stopMonitoring();
+
+      notifyListeners();
+    }
   }
 
-  _setError(e.message);
-}
-```
+  //================================
+  // GET LAST DATA
+  // Used by Dashboard
+  //================================
 
-}
+  Future<void> getLatestHealthData() async {
+    try {
+      final result =
+          await _espService.readHealthStatus();
 
-// =========================================
-// GET LATEST HEALTH DATA
-//
-// Used by Dashboard / Refresh.
-// =========================================
+      _healthData = result;
 
-Future<void> getLatestHealthData() async {
-try {
-_setApiState(
-ApiState.readingData(),
-);
+      _state = ApiState.success(
+        'Data updated',
+      );
 
-```
-  final result =
-      await _espService.readHealthStatus();
+      notifyListeners();
+    }
 
-  _healthData = result;
+    on NetworkException catch (e) {
+      _state = ApiState.error(
+        e.message,
+      );
 
-  _setApiState(
-    ApiState.success(
-      'Data updated',
-    ),
-  );
-} on NetworkException catch (e) {
-  _setError(e.message);
-}
-```
+      notifyListeners();
+    }
+  }
 
-}
+  //================================
+  // STOP MONITORING
+  //================================
 
-// =========================================
-// INTERNAL STATE HELPERS
-// =========================================
+  void stopMonitoring() {
+    _monitorTimer?.cancel();
+    _monitorTimer = null;
+  }
 
-void _setApiState(ApiState state) {
-_state = state;
-notifyListeners();
-}
-
-void _setESPState(ESPState state) {
-_espState = state;
-notifyListeners();
-}
-
-void _setError(String message) {
-_state = ApiState.error(message);
-
-```
-_espState = ESPState(
-  status: ESPStatus.error,
-  message: message,
-);
-
-stopMonitoring();
-
-notifyListeners();
-```
-
-}
-
-// =========================================
-// STOP MONITORING
-// =========================================
-
-void stopMonitoring() {
-_monitorTimer?.cancel();
-_monitorTimer = null;
-}
-
-// =========================================
-// DISPOSE
-// =========================================
-
-@override
-void dispose() {
-stopMonitoring();
-super.dispose();
-}
+  @override
+  void dispose() {
+    stopMonitoring();
+    super.dispose();
+  }
 }
