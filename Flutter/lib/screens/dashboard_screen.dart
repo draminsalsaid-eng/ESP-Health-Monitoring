@@ -207,7 +207,7 @@ class _DashboardScreenState
 
               :
 
-              "${data.temperature} °C",
+              "${data.environmentTemperature} °C",
 
 
               icon:
@@ -239,7 +239,7 @@ class _DashboardScreenState
 
               :
 
-              data.aiStatus,
+              data.prediction,
 
 
               icon:
