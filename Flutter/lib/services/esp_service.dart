@@ -1,4 +1,4 @@
-import 'dart:async';
+    import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -12,17 +12,20 @@ class ESPService {
   // ESP32 CONFIGURATION
   // ============================================================
 
-  // ضع هنا IP الخاص بالـ ESP32 في الشبكة المحلية.
+  // IP address displayed by ESP32 Serial Monitor:
+  // 192.168.1.12
   //
-  // مثال:
-  // http://192.168.1.12
-  //
-  // إذا تغير IP الخاص بالـ ESP32 قم بتغييره هنا.
-  static const String esp32BaseUrl = 'http://192.168.1.12';
+  // IMPORTANT:
+  // Use HTTP, not HTTPS.
+  static const String esp32BaseUrl =
+      'http://192.168.1.12';
 
   // ESP32 endpoints
-  static const String startEndpoint = '/start';
-  static const String healthEndpoint = '/health';
+  static const String startEndpoint =
+      '/start';
+
+  static const String healthEndpoint =
+      '/health';
 
   // Network timeout
   static const Duration requestTimeout =
@@ -32,10 +35,12 @@ class ESPService {
   // HTTP CLIENT
   // ============================================================
 
-  final http.Client _client = http.Client();
+  final http.Client _client =
+      http.Client();
 
   // ============================================================
   // CHECK ESP32 CONNECTION
+  // GET /health
   // ============================================================
 
   Future<bool> checkConnection() async {
@@ -53,11 +58,17 @@ class ESPService {
       }
 
       return false;
-    } on TimeoutException {
+    }
+
+    on TimeoutException {
       return false;
-    } on http.ClientException {
+    }
+
+    on http.ClientException {
       return false;
-    } catch (_) {
+    }
+
+    catch (_) {
       return false;
     }
   }
@@ -71,13 +82,21 @@ class ESPService {
     UserInput userInput,
   ) async {
     try {
-      final Map<String, dynamic> data = {
-        'user_id': userInput.userId,
-        'worker_type': userInput.workerType,
-        'activity': userInput.activity,
 
-        // ESP32 currently expects "workplace"
-        'workplace': userInput.environment,
+      final Map<String, dynamic> data = {
+
+        'user_id':
+            userInput.userId,
+
+        'worker_type':
+            userInput.workerType,
+
+        'activity':
+            userInput.activity,
+
+        // ESP32 expects "workplace"
+        'workplace':
+            userInput.environment,
       };
 
       final response = await _client
@@ -85,58 +104,106 @@ class ESPService {
             Uri.parse(
               '$esp32BaseUrl$startEndpoint',
             ),
+
             headers: {
-              'Content-Type': 'application/json',
+              'Content-Type':
+                  'application/json',
             },
+
             body: jsonEncode(data),
           )
           .timeout(requestTimeout);
 
+      // ========================================================
+      // HTTP STATUS
+      // ========================================================
+
       if (response.statusCode != 200) {
+
         throw NetworkException(
           'ESP32 rejected start request '
           '(${response.statusCode})',
         );
       }
 
-      // Try to verify ESP32 response
+      // ========================================================
+      // VERIFY ESP32 RESPONSE
+      // ========================================================
+
       if (response.body.isNotEmpty) {
+
         try {
+
           final decoded =
               jsonDecode(response.body);
 
-          if (decoded is Map<String, dynamic>) {
+          if (decoded
+              is Map<String, dynamic>) {
+
             final status =
-                decoded['status']?.toString();
+                decoded['status']
+                    ?.toString();
 
             if (status != null &&
                 status != 'ok') {
+
               throw NetworkException(
-                decoded['message']?.toString() ??
+                decoded['message']
+                        ?.toString() ??
                     'ESP32 failed to start monitoring',
               );
             }
           }
+
         } catch (e) {
+
           if (e is NetworkException) {
             rethrow;
           }
 
-          // Ignore JSON parsing problems here
-          // if HTTP status was successful.
+          // HTTP 200 is already successful.
+          // Ignore JSON parsing problems here.
         }
       }
-    } on TimeoutException {
+    }
+
+    // ==========================================================
+    // TIMEOUT
+    // ==========================================================
+
+    on TimeoutException {
+
       throw const NetworkException(
         'Connection timeout while starting monitoring',
       );
-    } on http.ClientException catch (e) {
+    }
+
+    // ==========================================================
+    // CLIENT ERROR
+    // ==========================================================
+
+    on http.ClientException catch (e) {
+
       throw NetworkException(
-        'Could not connect to ESP32: ${e.message}',
+        'Could not connect to ESP32: '
+        '${e.message}',
       );
-    } on NetworkException {
+    }
+
+    // ==========================================================
+    // NETWORK EXCEPTION
+    // ==========================================================
+
+    on NetworkException {
       rethrow;
-    } catch (e) {
+    }
+
+    // ==========================================================
+    // OTHER ERROR
+    // ==========================================================
+
+    catch (e) {
+
       throw NetworkException(
         'Failed to start monitoring: $e',
       );
@@ -147,12 +214,14 @@ class ESPService {
   // READ ESP32 STATUS
   // GET /health
   //
-  // This is the main communication channel during measurement.
+  // Main communication channel during measurement.
   // ============================================================
 
   Future<Map<String, dynamic>>
       readESPStatusJson() async {
+
     try {
+
       final response = await _client
           .get(
             Uri.parse(
@@ -161,44 +230,95 @@ class ESPService {
           )
           .timeout(requestTimeout);
 
+      // ========================================================
+      // HTTP STATUS
+      // ========================================================
+
       if (response.statusCode != 200) {
+
         throw NetworkException(
           'ESP32 returned HTTP '
           '${response.statusCode}',
         );
       }
 
+      // ========================================================
+      // EMPTY RESPONSE
+      // ========================================================
+
       if (response.body.isEmpty) {
+
         throw const NetworkException(
           'ESP32 returned an empty response',
         );
       }
 
+      // ========================================================
+      // JSON
+      // ========================================================
+
       final decoded =
           jsonDecode(response.body);
 
-      if (decoded is! Map<String, dynamic>) {
+      if (decoded
+          is! Map<String, dynamic>) {
+
         throw const NetworkException(
           'Invalid JSON received from ESP32',
         );
       }
 
       return decoded;
-    } on TimeoutException {
+    }
+
+    // ==========================================================
+    // TIMEOUT
+    // ==========================================================
+
+    on TimeoutException {
+
       throw const NetworkException(
         'Timeout while reading ESP32 status',
       );
-    } on FormatException {
+    }
+
+    // ==========================================================
+    // INVALID JSON
+    // ==========================================================
+
+    on FormatException {
+
       throw const NetworkException(
         'ESP32 returned invalid JSON',
       );
-    } on http.ClientException catch (e) {
+    }
+
+    // ==========================================================
+    // CLIENT ERROR
+    // ==========================================================
+
+    on http.ClientException catch (e) {
+
       throw NetworkException(
-        'ESP32 connection error: ${e.message}',
+        'ESP32 connection error: '
+        '${e.message}',
       );
-    } on NetworkException {
+    }
+
+    // ==========================================================
+    // NETWORK EXCEPTION
+    // ==========================================================
+
+    on NetworkException {
       rethrow;
-    } catch (e) {
+    }
+
+    // ==========================================================
+    // OTHER ERROR
+    // ==========================================================
+
+    catch (e) {
+
       throw NetworkException(
         'Failed to read ESP32 status: $e',
       );
@@ -211,23 +331,37 @@ class ESPService {
   // Used by Dashboard.
   // ============================================================
 
-  Future<HealthResponse> readHealthStatus() async {
+  Future<HealthResponse>
+      readHealthStatus() async {
+
     try {
+
       final data =
           await readESPStatusJson();
 
-      // Make sure this is a health report
+      // ========================================================
+      // CHECK COMPLETED HEALTH DATA
+      // ========================================================
+
       if (!data.containsKey('HR') ||
           !data.containsKey('SpO2')) {
+
         throw const NetworkException(
           'No completed health data available',
         );
       }
 
-      return HealthResponse.fromJson(data);
-    } on NetworkException {
+      return HealthResponse.fromJson(
+        data,
+      );
+    }
+
+    on NetworkException {
       rethrow;
-    } catch (e) {
+    }
+
+    catch (e) {
+
       throw NetworkException(
         'Failed to read health data: $e',
       );
@@ -239,7 +373,7 @@ class ESPService {
   // ============================================================
 
   void dispose() {
+
     _client.close();
   }
 }
-```
