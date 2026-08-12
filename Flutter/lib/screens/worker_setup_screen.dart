@@ -118,7 +118,7 @@ class _WorkerSetupScreenState
     // User data sent
     //    ↓
     // ESP32 waiting for finger
-    //
+    // 
     // ==========================================================
 
    Navigator.pushReplacement(
