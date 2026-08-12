@@ -1,41 +1,36 @@
-name: Flutter APK Build
+  name: Flutter APK Build
 
 on:
   push:
     branches:
       - main
-
   workflow_dispatch:
 
-
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
-
 
     steps:
 
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.0'
 
+      - name: Generate Android Project
+        working-directory: Flutter
+        run: flutter create --platforms=android .
 
       - name: Install Dependencies
         working-directory: Flutter
         run: flutter pub get
 
-
       - name: Build APK
         working-directory: Flutter
         run: flutter build apk --release
-
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
