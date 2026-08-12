@@ -52,8 +52,9 @@ class HealthResponse {
       activity:
           json['activity'] ?? '',
 
-      environment:
-          json['environment'] ?? '',
+     environment:
+        json['environment'] ??
+        json['workplace'] ??'',
 
       heartRate:
           (json['HR'] as num?)?.toInt() ?? 0,
