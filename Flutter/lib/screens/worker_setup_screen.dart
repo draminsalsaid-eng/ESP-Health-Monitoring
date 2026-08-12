@@ -121,14 +121,14 @@ class _WorkerSetupScreenState
     //
     // ==========================================================
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            const HomeNavigation(),
-      ),
-    );
-  }
+   Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(
+    builder: (_) => MonitoringScreen(
+      userInput: userInput,
+    ),
+  ),
+);
 
   // ============================================================
   // DROPDOWN
