@@ -12,18 +12,52 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+      # ============================================
+      # CHECKOUT REPOSITORY
+      # ============================================
+
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      # ============================================
+      # SETUP FLUTTER
+      # ============================================
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.0'
 
+      # ============================================
+      # CREATE FRESH ANDROID FLUTTER PROJECT
+      # ============================================
+
       - name: Create Android Flutter Project
         run: |
           rm -rf build_app
-          flutter create --platforms=android --project-name esp_health_monitor build_app
+          flutter create \
+            --platforms=android \
+            --project-name esp_health_monitor \
+            build_app
+
+      # ============================================
+      # ALLOW HTTP CONNECTION TO ESP32
+      #
+      # ESP32 uses:
+      # http://192.168.1.12
+      #
+      # Android must allow cleartext HTTP.
+      # ============================================
+
+      - name: Allow HTTP Connection to ESP32
+        run: |
+          sed -i 's/<application /<application android:usesCleartextTraffic="true" /' \
+            build_app/android/app/src/main/AndroidManifest.xml
+
+      # ============================================
+      # COPY FLUTTER APPLICATION
+      # ============================================
 
       - name: Copy Application Files
         run: |
@@ -31,13 +65,27 @@ jobs:
           cp -r Flutter/lib build_app/lib
           cp Flutter/pubspec.yaml build_app/pubspec.yaml
 
+      # ============================================
+      # INSTALL DEPENDENCIES
+      # ============================================
+
       - name: Install Dependencies
         working-directory: build_app
-        run: flutter pub get
+        run: |
+          flutter pub get
+
+      # ============================================
+      # BUILD RELEASE APK
+      # ============================================
 
       - name: Build APK
         working-directory: build_app
-        run: flutter build apk --release
+        run: |
+          flutter build apk --release
+
+      # ============================================
+      # UPLOAD APK
+      # ============================================
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
