@@ -5,9 +5,7 @@ import '../models/esp_status.dart';
 import '../models/user_input.dart';
 import '../providers/health_provider.dart';
 
-import 'home_navigation.dart';
-
-class MonitoringScreen extends StatefulWidget {
+class MonitoringScreen extends StatelessWidget {
   final UserInput userInput;
 
   const MonitoringScreen({
@@ -16,27 +14,15 @@ class MonitoringScreen extends StatefulWidget {
   });
 
   @override
-  State<MonitoringScreen> createState() =>
-      _MonitoringScreenState();
-}
-
-class _MonitoringScreenState
-    extends State<MonitoringScreen> {
-
-  @override
   Widget build(BuildContext context) {
-    final health = Provider.of<HealthProvider>(
-      context,
-    );
-
-    final esp = health.espState;
+    final health = Provider.of<HealthProvider>(context);
+    final ESPState esp = health.espState;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Health Monitoring',
-        ),
+        title: const Text('Health Monitoring'),
         centerTitle: true,
+        automaticallyImplyLeading: false,
       ),
 
       body: SafeArea(
@@ -46,9 +32,9 @@ class _MonitoringScreenState
           child: Column(
             children: [
 
-              // ================================================
-              // PROFILE
-              // ================================================
+              // ==========================================
+              // MONITORING PROFILE
+              // ==========================================
 
               Card(
                 elevation: 3,
@@ -67,51 +53,44 @@ class _MonitoringScreenState
 
                         style: TextStyle(
                           fontSize: 20,
-                          fontWeight:
-                              FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
 
-                      const SizedBox(
-                        height: 15,
-                      ),
+                      const SizedBox(height: 15),
 
                       _infoRow(
                         'Worker',
-                        widget.userInput.workerType,
+                        userInput.workerType,
                       ),
 
                       _infoRow(
                         'Activity',
-                        widget.userInput.activity,
+                        userInput.activity,
                       ),
 
                       _infoRow(
                         'Environment',
-                        widget.userInput.environment,
+                        userInput.environment,
                       ),
                     ],
                   ),
                 ),
               ),
 
-              const SizedBox(
-                height: 25,
-              ),
+              const SizedBox(height: 30),
 
-              // ================================================
+              // ==========================================
               // STATUS ICON
-              // ================================================
+              // ==========================================
 
               _buildStatusIcon(esp),
 
-              const SizedBox(
-                height: 20,
-              ),
+              const SizedBox(height: 20),
 
-              // ================================================
+              // ==========================================
               // STATUS TITLE
-              // ================================================
+              // ==========================================
 
               Text(
                 _statusTitle(esp),
@@ -120,18 +99,15 @@ class _MonitoringScreenState
 
                 style: const TextStyle(
                   fontSize: 24,
-                  fontWeight:
-                      FontWeight.bold,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
 
-              const SizedBox(
-                height: 12,
-              ),
+              const SizedBox(height: 12),
 
-              // ================================================
+              // ==========================================
               // STATUS MESSAGE
-              // ================================================
+              // ==========================================
 
               Text(
                 esp.message,
@@ -144,13 +120,11 @@ class _MonitoringScreenState
                 ),
               ),
 
-              const SizedBox(
-                height: 25,
-              ),
+              const SizedBox(height: 25),
 
-              // ================================================
-              // PROGRESS
-              // ================================================
+              // ==========================================
+              // MEASUREMENT PROGRESS
+              // ==========================================
 
               if (esp.isMeasuring &&
                   esp.progress != null) ...[
@@ -164,70 +138,23 @@ class _MonitoringScreenState
                       BorderRadius.circular(10),
                 ),
 
-                const SizedBox(
-                  height: 10,
-                ),
+                const SizedBox(height: 10),
 
                 Text(
                   '${esp.progress}%',
 
                   style: const TextStyle(
-                    fontWeight:
-                        FontWeight.bold,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
 
               const Spacer(),
 
-              // ================================================
-              // WAITING FOR FINGER INFORMATION
-              // ================================================
-
-              if (esp.isWaitingFinger)
-
-                Card(
-                  color: Colors.orange.shade50,
-
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.all(16),
-
-                    child: Row(
-                      children: [
-
-                        Icon(
-                          Icons.touch_app,
-                          color: Colors.orange.shade800,
-                          size: 32,
-                        ),
-
-                        const SizedBox(
-                          width: 12,
-                        ),
-
-                        Expanded(
-                          child: Text(
-                            'Place your finger on the '
-                            'MAX30105 and MAX30205 sensors.',
-
-                            style: TextStyle(
-                              fontSize: 15,
-                              color:
-                                  Colors.orange.shade900,
-                              fontWeight:
-                                  FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              // ================================================
+              // ==========================================
               // COMPLETED
-              // ================================================
+              // ==========================================
 
               if (esp.isCompleted &&
                   health.healthData != null)
@@ -238,20 +165,11 @@ class _MonitoringScreenState
 
                   child: ElevatedButton.icon(
                     onPressed: () {
-
-                      Navigator.pushReplacement(
-                        context,
-
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              const HomeNavigation(),
-                        ),
-                      );
-
+                      Navigator.pop(context);
                     },
 
                     icon: const Icon(
-                      Icons.dashboard,
+                      Icons.check_circle,
                     ),
 
                     label: const Text(
@@ -259,16 +177,15 @@ class _MonitoringScreenState
 
                       style: TextStyle(
                         fontSize: 17,
-                        fontWeight:
-                            FontWeight.bold,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                 ),
 
-              // ================================================
+              // ==========================================
               // ERROR
-              // ================================================
+              // ==========================================
 
               if (esp.isError)
 
@@ -276,66 +193,16 @@ class _MonitoringScreenState
                   width: double.infinity,
                   height: 55,
 
-                  child: ElevatedButton.icon(
+                  child: ElevatedButton(
                     onPressed: () {
-
                       Navigator.pop(context);
-
                     },
 
-                    icon: const Icon(
-                      Icons.arrow_back,
-                    ),
-
-                    label: const Text(
+                    child: const Text(
                       'BACK',
-                    ),
-                  ),
-                ),
-
-              // ================================================
-              // PROCESSING AI
-              // ================================================
-
-              if (esp.isProcessingAI)
-
-                Card(
-                  color: Colors.blue.shade50,
-
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.all(16),
-
-                    child: Row(
-                      children: [
-
-                        const SizedBox(
-                          width: 24,
-                          height: 24,
-
-                          child:
-                              CircularProgressIndicator(
-                            strokeWidth: 3,
-                          ),
-                        ),
-
-                        const SizedBox(
-                          width: 15,
-                        ),
-
-                        Expanded(
-                          child: Text(
-                            'The AI is analyzing your '
-                            'health data. Please wait...',
-
-                            style: TextStyle(
-                              fontSize: 15,
-                              color:
-                                  Colors.blue.shade900,
-                            ),
-                          ),
-                        ),
-                      ],
+                      style: TextStyle(
+                        fontSize: 17,
+                      ),
                     ),
                   ),
                 ),
@@ -354,12 +221,9 @@ class _MonitoringScreenState
     String title,
     String value,
   ) {
-
     return Padding(
       padding:
-          const EdgeInsets.only(
-        bottom: 8,
-      ),
+          const EdgeInsets.only(bottom: 8),
 
       child: Row(
         children: [
@@ -368,15 +232,12 @@ class _MonitoringScreenState
             '$title: ',
 
             style: const TextStyle(
-              fontWeight:
-                  FontWeight.bold,
+              fontWeight: FontWeight.bold,
             ),
           ),
 
           Expanded(
-            child: Text(
-              value,
-            ),
+            child: Text(value),
           ),
         ],
       ),
@@ -390,66 +251,35 @@ class _MonitoringScreenState
   Widget _buildStatusIcon(
     ESPState esp,
   ) {
-
     IconData icon;
     Color color;
 
-    // ============================================
-    // WAITING FOR FINGER
-    // ============================================
-
     if (esp.isWaitingFinger) {
-
       icon = Icons.touch_app;
       color = Colors.orange;
     }
 
-    // ============================================
-    // MEASURING
-    // ============================================
-
     else if (esp.isMeasuring) {
-
       icon = Icons.monitor_heart;
       color = Colors.red;
     }
 
-    // ============================================
-    // AI PROCESSING
-    // ============================================
-
     else if (esp.isProcessingAI) {
-
       icon = Icons.psychology;
       color = Colors.blue;
     }
 
-    // ============================================
-    // COMPLETED
-    // ============================================
-
     else if (esp.isCompleted) {
-
       icon = Icons.check_circle;
       color = Colors.green;
     }
 
-    // ============================================
-    // ERROR
-    // ============================================
-
     else if (esp.isError) {
-
       icon = Icons.error;
       color = Colors.red;
     }
 
-    // ============================================
-    // DEFAULT
-    // ============================================
-
     else {
-
       icon = Icons.health_and_safety;
       color = Colors.blue;
     }
@@ -462,9 +292,7 @@ class _MonitoringScreenState
 
       child: Icon(
         icon,
-
         size: 55,
-
         color: color,
       ),
     );
@@ -477,56 +305,26 @@ class _MonitoringScreenState
   String _statusTitle(
     ESPState esp,
   ) {
-
-    // ============================================
-    // WAITING FOR FINGER
-    // ============================================
-
     if (esp.isWaitingFinger) {
-
       return 'Place Your Finger';
     }
 
-    // ============================================
-    // MEASURING
-    // ============================================
-
     if (esp.isMeasuring) {
-
       return 'Measuring';
     }
 
-    // ============================================
-    // AI ANALYSIS
-    // ============================================
-
     if (esp.isProcessingAI) {
-
       return 'AI Analysis';
     }
 
-    // ============================================
-    // COMPLETED
-    // ============================================
-
     if (esp.isCompleted) {
-
       return 'Measurement Completed';
     }
 
-    // ============================================
-    // ERROR
-    // ============================================
-
     if (esp.isError) {
-
       return 'Measurement Error';
     }
 
-    // ============================================
-    // DEFAULT
-    // ============================================
-
-    return 'Connecting to ESP32...';
+    return 'Connecting to ESP32';
   }
 }
