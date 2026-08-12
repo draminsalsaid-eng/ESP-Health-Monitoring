@@ -42,36 +42,35 @@ class ESPService {
   // CHECK ESP32 CONNECTION
   // GET /health
   // ============================================================
+   Future<bool> checkConnection() async {
+  try {
+    final response = await _client
+        .get(
+          Uri.parse(
+            '$esp32BaseUrl$healthEndpoint',
+          ),
+        )
+        .timeout(requestTimeout);
 
-  Future<bool> checkConnection() async {
-    try {
-      final response = await _client
-          .get(
-            Uri.parse(
-              '$esp32BaseUrl$healthEndpoint',
-            ),
-          )
-          .timeout(requestTimeout);
+    print('ESP32 STATUS CODE: ${response.statusCode}');
+    print('ESP32 RESPONSE: ${response.body}');
 
-      if (response.statusCode == 200) {
-        return true;
-      }
-
-      return false;
+    if (response.statusCode == 200) {
+      return true;
     }
 
-    on TimeoutException {
-      return false;
-    }
-
-    on http.ClientException {
-      return false;
-    }
-
-    catch (_) {
-      return false;
-    }
+    return false;
+  } on TimeoutException catch (e) {
+    print('ESP32 TIMEOUT: $e');
+    return false;
+  } on http.ClientException catch (e) {
+    print('ESP32 CLIENT ERROR: $e');
+    return false;
+  } catch (e) {
+    print('ESP32 UNKNOWN ERROR: $e');
+    return false;
   }
+}
 
   // ============================================================
   // SEND USER / WORKER INFORMATION TO ESP32
