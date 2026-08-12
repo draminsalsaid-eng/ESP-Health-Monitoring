@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+
   workflow_dispatch:
 
 jobs:
@@ -19,20 +20,27 @@ jobs:
         with:
           flutter-version: '3.22.0'
 
-      - name: Generate Android Project
-        working-directory: Flutter
-        run: flutter create --platforms=android --project-name esp_health_monitor .
+      - name: Create Android Flutter Project
+        run: |
+          rm -rf build_app
+          flutter create --platforms=android --project-name esp_health_monitor build_app
+
+      - name: Copy Application Files
+        run: |
+          rm -rf build_app/lib
+          cp -r Flutter/lib build_app/lib
+          cp Flutter/pubspec.yaml build_app/pubspec.yaml
 
       - name: Install Dependencies
-        working-directory: Flutter
+        working-directory: build_app
         run: flutter pub get
 
       - name: Build APK
-        working-directory: Flutter
+        working-directory: build_app
         run: flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: esp-health-monitor-apk
-          path: Flutter/build/app/outputs/flutter-apk/app-release.apk
+          path: build_app/build/app/outputs/flutter-apk/app-release.apk
