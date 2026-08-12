@@ -14,7 +14,7 @@ jobs:
     steps:
 
       # ============================================
-      # CHECKOUT REPOSITORY
+      # CHECKOUT
       # ============================================
 
       - name: Checkout Repository
@@ -30,30 +30,159 @@ jobs:
           flutter-version: '3.22.0'
 
       # ============================================
-      # CREATE FRESH ANDROID FLUTTER PROJECT
+      # CREATE FRESH ANDROID PROJECT
       # ============================================
 
       - name: Create Android Flutter Project
         run: |
           rm -rf build_app
+
           flutter create \
             --platforms=android \
             --project-name esp_health_monitor \
             build_app
 
       # ============================================
-      # ALLOW HTTP CONNECTION TO ESP32
-      #
-      # ESP32 uses:
-      # http://192.168.1.12
-      #
-      # Android must allow cleartext HTTP.
+      # ADD INTERNET PERMISSION
       # ============================================
 
-      - name: Allow HTTP Connection to ESP32
+      - name: Configure Android Network Permission
         run: |
-          sed -i 's/<application /<application android:usesCleartextTraffic="true" /' \
-            build_app/android/app/src/main/AndroidManifest.xml
+          python3 - <<'PY'
+          from pathlib import Path
+
+          manifest = Path(
+              "build_app/android/app/src/main/AndroidManifest.xml"
+          )
+
+          text = manifest.read_text()
+
+          permission = (
+              '<uses-permission '
+              'android:name="android.permission.INTERNET" />'
+          )
+
+          if permission not in text:
+              text = text.replace(
+                  '<manifest ',
+                  '<manifest ',
+                  1
+              )
+
+              marker = '>\n'
+
+              position = text.find(marker)
+
+              if position != -1:
+                  position += len(marker)
+
+                  text = (
+                      text[:position]
+                      + '    '
+                      + permission
+                      + '\n'
+                      + text[position:]
+                  )
+
+          manifest.write_text(text)
+          PY
+
+      # ============================================
+      # ALLOW HTTP CONNECTION TO ESP32
+      # ============================================
+
+      - name: Configure Android Cleartext HTTP
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          manifest = Path(
+              "build_app/android/app/src/main/AndroidManifest.xml"
+          )
+
+          text = manifest.read_text()
+
+          if "android:usesCleartextTraffic=" not in text:
+              text = text.replace(
+                  "<application ",
+                  '<application android:usesCleartextTraffic="true" ',
+                  1
+              )
+
+          manifest.write_text(text)
+          PY
+
+      # ============================================
+      # CREATE NETWORK SECURITY CONFIG
+      # ============================================
+
+      - name: Create Network Security Configuration
+        run: |
+          mkdir -p build_app/android/app/src/main/res/xml
+
+          cat > build_app/android/app/src/main/res/xml/network_security_config.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <network-security-config>
+
+              <domain-config cleartextTrafficPermitted="true">
+
+                  <domain includeSubdomains="true">
+                      192.168.1.12
+                  </domain>
+
+              </domain-config>
+
+          </network-security-config>
+          EOF
+
+      # ============================================
+      # CONNECT NETWORK SECURITY CONFIG
+      # ============================================
+
+      - name: Attach Network Security Configuration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          manifest = Path(
+              "build_app/android/app/src/main/AndroidManifest.xml"
+          )
+
+          text = manifest.read_text()
+
+          attribute = (
+              'android:networkSecurityConfig='
+              '"@xml/network_security_config"'
+          )
+
+          if "android:networkSecurityConfig=" not in text:
+              text = text.replace(
+                  "<application ",
+                  '<application '
+                  'android:networkSecurityConfig="@xml/network_security_config" ',
+                  1
+              )
+
+          manifest.write_text(text)
+          PY
+
+      # ============================================
+      # SHOW MANIFEST FOR VERIFICATION
+      # ============================================
+
+      - name: Verify Android Manifest
+        run: |
+          echo "========================================"
+          echo "ANDROID MANIFEST"
+          echo "========================================"
+
+          cat build_app/android/app/src/main/AndroidManifest.xml
+
+          echo "========================================"
+          echo "NETWORK SECURITY CONFIG"
+          echo "========================================"
+
+          cat build_app/android/app/src/main/res/xml/network_security_config.xml
 
       # ============================================
       # COPY FLUTTER APPLICATION
@@ -62,7 +191,9 @@ jobs:
       - name: Copy Application Files
         run: |
           rm -rf build_app/lib
+
           cp -r Flutter/lib build_app/lib
+
           cp Flutter/pubspec.yaml build_app/pubspec.yaml
 
       # ============================================
@@ -75,7 +206,7 @@ jobs:
           flutter pub get
 
       # ============================================
-      # BUILD RELEASE APK
+      # BUILD APK
       # ============================================
 
       - name: Build APK
