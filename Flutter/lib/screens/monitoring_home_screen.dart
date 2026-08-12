@@ -1,4 +1,3 @@
-```dart
 import 'package:flutter/material.dart';
 
 import 'worker_setup_screen.dart';
@@ -169,4 +168,3 @@ class MonitoringHomeScreen extends StatelessWidget {
     );
   }
 }
-```
