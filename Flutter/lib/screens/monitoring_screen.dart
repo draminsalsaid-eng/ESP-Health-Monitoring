@@ -23,23 +23,7 @@ class MonitoringScreen extends StatefulWidget {
 class _MonitoringScreenState
     extends State<MonitoringScreen> {
 
-  bool started = false;
-
-  Future<void> _startMonitoring() async {
-    setState(() {
-      started = true;
-    });
-
-    final health =
-        Provider.of<HealthProvider>(
-      context,
-      listen: false,
-    );
-
-    await health.startMonitoring(
-      widget.userInput,
-    );
-  }
+  bool started = true;
 
   @override
   Widget build(BuildContext context) {
@@ -182,9 +166,6 @@ class _MonitoringScreenState
               //================================
               // START BUTTON
               //================================
-
-              if (!started &&
-                  esp.isIdle)
 
                 SizedBox(
                   width: double.infinity,
