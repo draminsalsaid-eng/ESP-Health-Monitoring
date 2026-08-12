@@ -21,7 +21,7 @@ jobs:
 
       - name: Generate Android Project
         working-directory: Flutter
-        run: flutter create --platforms=android .
+        run: flutter create --platforms=android --project-name esp_health_monitor .
 
       - name: Install Dependencies
         working-directory: Flutter
