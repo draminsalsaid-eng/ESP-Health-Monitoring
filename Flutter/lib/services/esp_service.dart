@@ -84,12 +84,11 @@ class ESPService {
     UserInput userInput,
   ) async {
     try {
-      final Map<String, dynamic> data = {
-        'user_id': userInput.userId,
-        'worker_type': userInput.workerType,
-        'activity': userInput.activity,
-        'workplace': userInput.environment,
-      };
+     final Map<String, dynamic> data = {
+  'worker_type': userInput.workerType,
+  'activity': userInput.activity,
+  'environment': userInput.environment,
+   };
 
       print('========================================');
       print('ESP32 START REQUEST');
