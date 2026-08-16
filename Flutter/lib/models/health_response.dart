@@ -118,10 +118,10 @@ class HealthResponse {
       "HR": heartRate,
       "HRV": hrv,
       "SpO2": spo2,
-
+      "body_temp": bodyTemperature,
       "env_temp": environmentTemperature,
       "humidity": humidity,
-
+      
       "MQ2": mq2,
       "MQ5": mq5,
       "MQ135": mq135,
