@@ -208,6 +208,47 @@ class _DashboardScreenState
               :
 
               "${data.environmentTemperature} °C",
+ 
+
+              icon:
+              Icons.thermostat,
+
+
+              color:
+              Colors.orange,
+
+
+            ),
+
+
+
+            VitalCard(
+
+              title:
+              "Temperature",
+
+              value:
+
+              data == null
+
+              ? "--"
+
+              :
+
+              VitalCard(
+
+              title:
+              "Temperature",
+
+              value:
+
+              data == null
+
+              ? "--"
+
+              :
+
+              "${data.environmentTemperature} °C",
 
 
               icon:
@@ -221,6 +262,15 @@ class _DashboardScreenState
             ),
 
 
+              icon:
+              Icons.thermostat,
+
+
+              color:
+              Colors.orange,
+
+
+            ),
 
 
 
