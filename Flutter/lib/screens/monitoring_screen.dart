@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
- 
+
 import '../models/esp_status.dart';
 import '../models/user_input.dart';
 import '../providers/health_provider.dart';
+import 'dashboard_screen.dart';
 
 class MonitoringScreen extends StatelessWidget {
   final UserInput userInput;
@@ -32,13 +33,12 @@ class MonitoringScreen extends StatelessWidget {
           child: Column(
             children: [
 
-              // ==========================================
+              // ==================================================
               // MONITORING PROFILE
-              // ==========================================
+              // ==================================================
 
               Card(
                 elevation: 3,
-
                 child: Padding(
                   padding: const EdgeInsets.all(18),
 
@@ -50,7 +50,6 @@ class MonitoringScreen extends StatelessWidget {
 
                       const Text(
                         'Monitoring Profile',
-
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -80,57 +79,76 @@ class MonitoringScreen extends StatelessWidget {
 
               const SizedBox(height: 30),
 
-              // ==========================================
+              // ==================================================
               // STATUS ICON
-              // ==========================================
+              // ==================================================
 
               _buildStatusIcon(esp),
 
               const SizedBox(height: 20),
 
-              // ==========================================
+              // ==================================================
               // STATUS TITLE
-              // ==========================================
+              // ==================================================
 
-              Text(
-                _statusTitle(esp),
+              AnimatedSwitcher(
+                duration: const Duration(
+                  milliseconds: 300,
+                ),
 
-                textAlign: TextAlign.center,
+                child: Text(
+                  _statusTitle(esp),
+                  key: ValueKey(
+                    esp.status,
+                  ),
 
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+                  textAlign: TextAlign.center,
+
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
 
               const SizedBox(height: 12),
 
-              // ==========================================
+              // ==================================================
               // STATUS MESSAGE
-              // ==========================================
+              // ==================================================
 
-              Text(
-                esp.message,
+              AnimatedSwitcher(
+                duration: const Duration(
+                  milliseconds: 300,
+                ),
 
-                textAlign: TextAlign.center,
+                child: Text(
+                  esp.message,
+                  key: ValueKey(
+                    '${esp.status}_${esp.message}',
+                  ),
 
-                style: TextStyle(
-                  fontSize: 17,
-                  color: Colors.grey.shade700,
+                  textAlign: TextAlign.center,
+
+                  style: TextStyle(
+                    fontSize: 17,
+                    color: Colors.grey.shade700,
+                  ),
                 ),
               ),
 
               const SizedBox(height: 25),
 
-              // ==========================================
+              // ==================================================
               // MEASUREMENT PROGRESS
-              // ==========================================
+              // ==================================================
 
               if (esp.isMeasuring &&
                   esp.progress != null) ...[
 
                 LinearProgressIndicator(
-                  value: esp.progress! / 100,
+                  value: (esp.progress! / 100)
+                      .clamp(0.0, 1.0),
 
                   minHeight: 10,
 
@@ -142,7 +160,6 @@ class MonitoringScreen extends StatelessWidget {
 
                 Text(
                   '${esp.progress}%',
-
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -150,47 +167,109 @@ class MonitoringScreen extends StatelessWidget {
                 ),
               ],
 
-              const Spacer(),
+              // ==================================================
+              // AI PROCESSING
+              // ==================================================
 
-              // ==========================================
-              // COMPLETED
-              // ==========================================
+              if (esp.isProcessingAI) ...[
 
-              if (esp.isCompleted &&
-                  health.healthData != null)
+                const SizedBox(height: 10),
 
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
+                const LinearProgressIndicator(
+                  minHeight: 10,
+                ),
 
-                  child: ElevatedButton.icon(
-                   onPressed: () {
-  Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(
-      builder: (_) => const DashboardScreen(),
-    ),
-  );
-},
+                const SizedBox(height: 15),
 
-                    icon: const Icon(
-                      Icons.check_circle,
+                Row(
+                  mainAxisAlignment:
+                      MainAxisAlignment.center,
+
+                  children: const [
+
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+
+                      child:
+                          CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                      ),
                     ),
 
-                    label: const Text(
-                      'VIEW HEALTH DASHBOARD',
+                    SizedBox(width: 12),
 
+                    Text(
+                      'AI is analyzing the measurements...',
                       style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              const Spacer(),
+
+              // ==================================================
+              // COMPLETED
+              // ==================================================
+
+              if (esp.isCompleted) ...[
+
+                if (health.healthData != null)
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+
+                    child: ElevatedButton.icon(
+
+                      onPressed: () {
+
+                        Navigator.pushReplacement(
+                          context,
+
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const DashboardScreen(),
+                          ),
+                        );
+
+                      },
+
+                      icon: const Icon(
+                        Icons.check_circle,
+                      ),
+
+                      label: const Text(
+                        'VIEW HEALTH DASHBOARD',
+
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight:
+                              FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                ),
 
-              // ==========================================
+                if (health.healthData == null)
+
+                  const Text(
+                    'Health results are being loaded...',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.grey,
+                    ),
+                  ),
+              ],
+
+              // ==================================================
               // ERROR
-              // ==========================================
+              // ==================================================
 
               if (esp.isError)
 
@@ -198,17 +277,43 @@ class MonitoringScreen extends StatelessWidget {
                   width: double.infinity,
                   height: 55,
 
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
+
                     onPressed: () {
                       Navigator.pop(context);
                     },
 
-                    child: const Text(
+                    icon: const Icon(
+                      Icons.arrow_back,
+                    ),
+
+                    label: const Text(
                       'BACK',
+
                       style: TextStyle(
                         fontSize: 17,
                       ),
                     ),
+                  ),
+                ),
+
+              const SizedBox(height: 15),
+
+              // ==================================================
+              // STATUS INFORMATION
+              // ==================================================
+
+              if (!esp.isCompleted &&
+                  !esp.isError)
+
+                Text(
+                  _bottomMessage(esp),
+
+                  textAlign: TextAlign.center,
+
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
                   ),
                 ),
             ],
@@ -231,6 +336,9 @@ class MonitoringScreen extends StatelessWidget {
           const EdgeInsets.only(bottom: 8),
 
       child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+
         children: [
 
           Text(
@@ -256,49 +364,58 @@ class MonitoringScreen extends StatelessWidget {
   Widget _buildStatusIcon(
     ESPState esp,
   ) {
+
     IconData icon;
     Color color;
 
     if (esp.isWaitingFinger) {
+
       icon = Icons.touch_app;
       color = Colors.orange;
-    }
 
-    else if (esp.isMeasuring) {
+    } else if (esp.isMeasuring) {
+
       icon = Icons.monitor_heart;
       color = Colors.red;
-    }
 
-    else if (esp.isProcessingAI) {
+    } else if (esp.isProcessingAI) {
+
       icon = Icons.psychology;
       color = Colors.blue;
-    }
 
-    else if (esp.isCompleted) {
+    } else if (esp.isCompleted) {
+
       icon = Icons.check_circle;
       color = Colors.green;
-    }
 
-    else if (esp.isError) {
+    } else if (esp.isError) {
+
       icon = Icons.error;
       color = Colors.red;
-    }
 
-    else {
+    } else {
+
       icon = Icons.health_and_safety;
       color = Colors.blue;
     }
 
-    return CircleAvatar(
-      radius: 45,
+    return AnimatedSwitcher(
+      duration:
+          const Duration(milliseconds: 300),
 
-      backgroundColor:
-          color.withOpacity(0.12),
+      child: CircleAvatar(
+        key: ValueKey(esp.status),
 
-      child: Icon(
-        icon,
-        size: 55,
-        color: color,
+        radius: 45,
+
+        backgroundColor:
+            color.withOpacity(0.12),
+
+        child: Icon(
+          icon,
+          size: 55,
+          color: color,
+        ),
       ),
     );
   }
@@ -310,6 +427,7 @@ class MonitoringScreen extends StatelessWidget {
   String _statusTitle(
     ESPState esp,
   ) {
+
     if (esp.isWaitingFinger) {
       return 'Place Your Finger';
     }
@@ -331,5 +449,28 @@ class MonitoringScreen extends StatelessWidget {
     }
 
     return 'Connecting to ESP32';
+  }
+
+  // ============================================================
+  // BOTTOM MESSAGE
+  // ============================================================
+
+  String _bottomMessage(
+    ESPState esp,
+  ) {
+
+    if (esp.isWaitingFinger) {
+      return 'Keep your finger on both sensors.';
+    }
+
+    if (esp.isMeasuring) {
+      return 'Please remain still while measurements are being collected.';
+    }
+
+    if (esp.isProcessingAI) {
+      return 'The collected physiological and environmental data are being analyzed.';
+    }
+
+    return 'Please wait...';
   }
 }
