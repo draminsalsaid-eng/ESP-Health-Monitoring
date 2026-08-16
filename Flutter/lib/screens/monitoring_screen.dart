@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/esp_status.dart';
 import '../models/user_input.dart';
 import '../providers/health_provider.dart';
+
 import 'dashboard_screen.dart';
 
 class MonitoringScreen extends StatelessWidget {
@@ -15,48 +16,64 @@ class MonitoringScreen extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final health = Provider.of<HealthProvider>(context);
-    final ESPState esp = health.espState;
+  Widget build(
+    BuildContext context,
+  ) {
+    final health =
+        Provider.of<HealthProvider>(
+      context,
+    );
+
+    final ESPState esp =
+        health.espState;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Health Monitoring'),
+        title:
+            const Text(
+          'Health Monitoring',
+        ),
         centerTitle: true,
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading:
+            false,
       ),
 
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding:
+              const EdgeInsets.all(20),
 
           child: Column(
             children: [
-
               // ==================================================
               // MONITORING PROFILE
               // ==================================================
 
               Card(
                 elevation: 3,
+
                 child: Padding(
-                  padding: const EdgeInsets.all(18),
+                  padding:
+                      const EdgeInsets.all(18),
 
                   child: Column(
                     crossAxisAlignment:
                         CrossAxisAlignment.start,
 
                     children: [
-
                       const Text(
                         'Monitoring Profile',
-                        style: TextStyle(
+                        style:
+                            TextStyle(
                           fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                          fontWeight:
+                              FontWeight.bold,
                         ),
                       ),
 
-                      const SizedBox(height: 15),
+                      const SizedBox(
+                        height: 15,
+                      ),
 
                       _infoRow(
                         'Worker',
@@ -77,7 +94,9 @@ class MonitoringScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(
+                height: 30,
+              ),
 
               // ==================================================
               // STATUS ICON
@@ -85,59 +104,52 @@ class MonitoringScreen extends StatelessWidget {
 
               _buildStatusIcon(esp),
 
-              const SizedBox(height: 20),
+              const SizedBox(
+                height: 20,
+              ),
 
               // ==================================================
               // STATUS TITLE
               // ==================================================
 
-              AnimatedSwitcher(
-                duration: const Duration(
-                  milliseconds: 300,
-                ),
+              Text(
+                _statusTitle(esp),
 
-                child: Text(
-                  _statusTitle(esp),
-                  key: ValueKey(
-                    esp.status,
-                  ),
+                textAlign:
+                    TextAlign.center,
 
-                  textAlign: TextAlign.center,
-
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                style:
+                    const TextStyle(
+                  fontSize: 24,
+                  fontWeight:
+                      FontWeight.bold,
                 ),
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(
+                height: 12,
+              ),
 
               // ==================================================
               // STATUS MESSAGE
               // ==================================================
 
-              AnimatedSwitcher(
-                duration: const Duration(
-                  milliseconds: 300,
-                ),
+              Text(
+                esp.message,
 
-                child: Text(
-                  esp.message,
-                  key: ValueKey(
-                    '${esp.status}_${esp.message}',
-                  ),
+                textAlign:
+                    TextAlign.center,
 
-                  textAlign: TextAlign.center,
-
-                  style: TextStyle(
-                    fontSize: 17,
-                    color: Colors.grey.shade700,
-                  ),
+                style: TextStyle(
+                  fontSize: 17,
+                  color:
+                      Colors.grey.shade700,
                 ),
               ),
 
-              const SizedBox(height: 25),
+              const SizedBox(
+                height: 25,
+              ),
 
               // ==================================================
               // MEASUREMENT PROGRESS
@@ -145,24 +157,31 @@ class MonitoringScreen extends StatelessWidget {
 
               if (esp.isMeasuring &&
                   esp.progress != null) ...[
-
                 LinearProgressIndicator(
-                  value: (esp.progress! / 100)
-                      .clamp(0.0, 1.0),
+                  value:
+                      (esp.progress! / 100)
+                          .clamp(0.0, 1.0),
 
                   minHeight: 10,
 
                   borderRadius:
-                      BorderRadius.circular(10),
+                      BorderRadius.circular(
+                    10,
+                  ),
                 ),
 
-                const SizedBox(height: 10),
+                const SizedBox(
+                  height: 10,
+                ),
 
                 Text(
                   '${esp.progress}%',
-                  style: const TextStyle(
+
+                  style:
+                      const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontWeight:
+                        FontWeight.bold,
                   ),
                 ),
               ],
@@ -172,41 +191,27 @@ class MonitoringScreen extends StatelessWidget {
               // ==================================================
 
               if (esp.isProcessingAI) ...[
-
-                const SizedBox(height: 10),
-
-                const LinearProgressIndicator(
-                  minHeight: 10,
+                const SizedBox(
+                  height: 10,
                 ),
 
-                const SizedBox(height: 15),
+                const LinearProgressIndicator(),
 
-                Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.center,
+                const SizedBox(
+                  height: 15,
+                ),
 
-                  children: const [
+                Text(
+                  'Please wait while the AI analyzes the measurements...',
+                  textAlign:
+                      TextAlign.center,
 
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-
-                      child:
-                          CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                      ),
-                    ),
-
-                    SizedBox(width: 12),
-
-                    Text(
-                      'AI is analyzing the measurements...',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                  style:
+                      TextStyle(
+                    fontSize: 15,
+                    color:
+                        Colors.grey.shade700,
+                  ),
                 ),
               ],
 
@@ -216,104 +221,70 @@ class MonitoringScreen extends StatelessWidget {
               // COMPLETED
               // ==================================================
 
-              if (esp.isCompleted) ...[
+              if (esp.isCompleted &&
+                  health.healthData !=
+                      null)
+                SizedBox(
+                  width:
+                      double.infinity,
+                  height: 55,
 
-                if (health.healthData != null)
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-
-                    child: ElevatedButton.icon(
-
-                      onPressed: () {
-
-                        Navigator.pushReplacement(
-                          context,
-
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const DashboardScreen(),
-                          ),
-                        );
-
-                      },
-
-                      icon: const Icon(
-                        Icons.check_circle,
-                      ),
-
-                      label: const Text(
-                        'VIEW HEALTH DASHBOARD',
-
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight:
-                              FontWeight.bold,
+                  child:
+                      ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const DashboardScreen(),
                         ),
+                      );
+                    },
+
+                    icon:
+                        const Icon(
+                      Icons.check_circle,
+                    ),
+
+                    label:
+                        const Text(
+                      'VIEW HEALTH DASHBOARD',
+                      style:
+                          TextStyle(
+                        fontSize: 17,
+                        fontWeight:
+                            FontWeight.bold,
                       ),
                     ),
                   ),
-
-                if (health.healthData == null)
-
-                  const Text(
-                    'Health results are being loaded...',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey,
-                    ),
-                  ),
-              ],
+                ),
 
               // ==================================================
               // ERROR
               // ==================================================
 
               if (esp.isError)
-
                 SizedBox(
-                  width: double.infinity,
+                  width:
+                      double.infinity,
                   height: 55,
 
-                  child: ElevatedButton.icon(
-
+                  child:
+                      ElevatedButton(
                     onPressed: () {
-                      Navigator.pop(context);
+                      Navigator.pop(
+                        context,
+                      );
                     },
 
-                    icon: const Icon(
-                      Icons.arrow_back,
-                    ),
-
-                    label: const Text(
+                    child:
+                        const Text(
                       'BACK',
-
-                      style: TextStyle(
+                      style:
+                          TextStyle(
                         fontSize: 17,
                       ),
                     ),
-                  ),
-                ),
-
-              const SizedBox(height: 15),
-
-              // ==================================================
-              // STATUS INFORMATION
-              // ==================================================
-
-              if (!esp.isCompleted &&
-                  !esp.isError)
-
-                Text(
-                  _bottomMessage(esp),
-
-                  textAlign: TextAlign.center,
-
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade600,
                   ),
                 ),
             ],
@@ -333,19 +304,18 @@ class MonitoringScreen extends StatelessWidget {
   ) {
     return Padding(
       padding:
-          const EdgeInsets.only(bottom: 8),
+          const EdgeInsets.only(
+        bottom: 8,
+      ),
 
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-
         children: [
-
           Text(
             '$title: ',
-
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
+            style:
+                const TextStyle(
+              fontWeight:
+                  FontWeight.bold,
             ),
           ),
 
@@ -364,58 +334,61 @@ class MonitoringScreen extends StatelessWidget {
   Widget _buildStatusIcon(
     ESPState esp,
   ) {
-
     IconData icon;
     Color color;
 
     if (esp.isWaitingFinger) {
-
-      icon = Icons.touch_app;
-      color = Colors.orange;
-
-    } else if (esp.isMeasuring) {
-
-      icon = Icons.monitor_heart;
-      color = Colors.red;
-
-    } else if (esp.isProcessingAI) {
-
-      icon = Icons.psychology;
-      color = Colors.blue;
-
-    } else if (esp.isCompleted) {
-
-      icon = Icons.check_circle;
-      color = Colors.green;
-
-    } else if (esp.isError) {
-
-      icon = Icons.error;
-      color = Colors.red;
-
-    } else {
-
-      icon = Icons.health_and_safety;
-      color = Colors.blue;
+      icon =
+          Icons.touch_app;
+      color =
+          Colors.orange;
     }
 
-    return AnimatedSwitcher(
-      duration:
-          const Duration(milliseconds: 300),
+    else if (esp.isMeasuring) {
+      icon =
+          Icons.monitor_heart;
+      color =
+          Colors.red;
+    }
 
-      child: CircleAvatar(
-        key: ValueKey(esp.status),
+    else if (esp.isProcessingAI) {
+      icon =
+          Icons.psychology;
+      color =
+          Colors.blue;
+    }
 
-        radius: 45,
+    else if (esp.isCompleted) {
+      icon =
+          Icons.check_circle;
+      color =
+          Colors.green;
+    }
 
-        backgroundColor:
-            color.withOpacity(0.12),
+    else if (esp.isError) {
+      icon =
+          Icons.error;
+      color =
+          Colors.red;
+    }
 
-        child: Icon(
-          icon,
-          size: 55,
-          color: color,
-        ),
+    else {
+      icon =
+          Icons.health_and_safety;
+      color =
+          Colors.blue;
+    }
+
+    return CircleAvatar(
+      radius: 45,
+
+      backgroundColor:
+          color.withOpacity(0.12),
+
+      child: Icon(
+        icon,
+        size: 55,
+        color: color,
       ),
     );
   }
@@ -427,7 +400,6 @@ class MonitoringScreen extends StatelessWidget {
   String _statusTitle(
     ESPState esp,
   ) {
-
     if (esp.isWaitingFinger) {
       return 'Place Your Finger';
     }
@@ -449,28 +421,5 @@ class MonitoringScreen extends StatelessWidget {
     }
 
     return 'Connecting to ESP32';
-  }
-
-  // ============================================================
-  // BOTTOM MESSAGE
-  // ============================================================
-
-  String _bottomMessage(
-    ESPState esp,
-  ) {
-
-    if (esp.isWaitingFinger) {
-      return 'Keep your finger on both sensors.';
-    }
-
-    if (esp.isMeasuring) {
-      return 'Please remain still while measurements are being collected.';
-    }
-
-    if (esp.isProcessingAI) {
-      return 'The collected physiological and environmental data are being analyzed.';
-    }
-
-    return 'Please wait...';
   }
 }
