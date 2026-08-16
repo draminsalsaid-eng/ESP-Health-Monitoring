@@ -15,17 +15,17 @@ class HealthProvider extends ChangeNotifier {
 
   Timer? _monitorTimer;
 
-  //================================
+  // ============================================================
   // API STATE
-  //================================
+  // ============================================================
 
   ApiState _state = ApiState.idle();
 
   ApiState get state => _state;
 
-  //================================
+  // ============================================================
   // ESP STATE
-  //================================
+  // ============================================================
 
   ESPState _espState = const ESPState(
     status: ESPStatus.idle,
@@ -34,22 +34,23 @@ class HealthProvider extends ChangeNotifier {
 
   ESPState get espState => _espState;
 
-  //================================
+  // ============================================================
   // HEALTH DATA
-  //================================
+  // ============================================================
 
   HealthResponse? _healthData;
 
   HealthResponse? get healthData => _healthData;
 
-  //================================
+  // ============================================================
   // START MONITORING
-  //================================
+  // ============================================================
 
   Future<bool> startMonitoring(
     UserInput userInput,
   ) async {
     try {
+      // Clear previous result
       _healthData = null;
 
       _state = ApiState.connecting();
@@ -61,7 +62,10 @@ class HealthProvider extends ChangeNotifier {
 
       notifyListeners();
 
+      // ----------------------------------------------------------
       // Check ESP32 connection
+      // ----------------------------------------------------------
+
       final connected =
           await _espService.checkConnection();
 
@@ -80,10 +84,17 @@ class HealthProvider extends ChangeNotifier {
         return false;
       }
 
-      // Send worker information
+      // ----------------------------------------------------------
+      // Send user information to ESP32
+      // ----------------------------------------------------------
+
       await _espService.sendUserInput(
         userInput,
       );
+
+      // ----------------------------------------------------------
+      // ESP32 is now waiting for finger
+      // ----------------------------------------------------------
 
       _state = ApiState.waitingSensor();
 
@@ -95,7 +106,10 @@ class HealthProvider extends ChangeNotifier {
 
       notifyListeners();
 
-      // Start reading ESP32 states
+      // ----------------------------------------------------------
+      // Start monitoring ESP32
+      // ----------------------------------------------------------
+
       _startMonitoringLoop();
 
       return true;
@@ -115,11 +129,26 @@ class HealthProvider extends ChangeNotifier {
 
       return false;
     }
+
+    catch (e) {
+      _state = ApiState.error(
+        'Unexpected error: $e',
+      );
+
+      _espState = ESPState(
+        status: ESPStatus.error,
+        message: 'Unexpected error: $e',
+      );
+
+      notifyListeners();
+
+      return false;
+    }
   }
 
-  //================================
+  // ============================================================
   // MONITORING LOOP
-  //================================
+  // ============================================================
 
   void _startMonitoringLoop() {
     _monitorTimer?.cancel();
@@ -132,99 +161,207 @@ class HealthProvider extends ChangeNotifier {
     );
   }
 
-  //================================
+  // ============================================================
   // READ ESP32 STATUS
-  //================================
+  // ============================================================
 
   Future<void> _readESPStatus() async {
     try {
       final data =
           await _espService.readESPStatusJson();
 
+      // ----------------------------------------------------------
+      // Convert JSON -> ESPState
+      // ----------------------------------------------------------
+
       final espState =
           ESPState.fromJson(data);
 
       _espState = espState;
-       debugPrint(
-  'ESP32 STATUS: ${data['status']}',
-);
 
-debugPrint(
-  'ESP32 MESSAGE: ${data['message']}',
-);
+      // ----------------------------------------------------------
+      // DEBUG
+      // ----------------------------------------------------------
 
-if (data.containsKey('progress')) {
-  debugPrint(
-    'ESP32 PROGRESS: ${data['progress']}%',
-  );
-}
-      //================================
+      debugPrint(
+        '==========================================',
+      );
+
+      debugPrint(
+        'ESP32 STATUS: ${data['status']}',
+      );
+
+      debugPrint(
+        'ESP32 MESSAGE: ${data['message']}',
+      );
+
+      if (data.containsKey('progress')) {
+        debugPrint(
+          'ESP32 PROGRESS: ${data['progress']}%',
+        );
+      }
+
+      debugPrint(
+        '==========================================',
+      );
+
+      // ==========================================================
       // WAITING FOR FINGER
-      //================================
+      // ==========================================================
 
       if (espState.isWaitingFinger) {
-        _state =
-            ApiState.waitingSensor();
+        _state = ApiState.waitingSensor();
+
+        debugPrint(
+          'Flutter State: WAITING FOR FINGER',
+        );
       }
 
-      //================================
+      // ==========================================================
       // MEASURING
-      //================================
+      // ==========================================================
 
-    else if (espState.isMeasuring) {
-  _state = ApiState.readingData();
+      else if (espState.isMeasuring) {
+        _state = ApiState.readingData();
 
-  // When measurement reaches 100%,
-  // show AI analysis while ESP32 is sending
-  // the data to the API.
-  if (espState.progress != null &&
-      espState.progress! >= 100) {
-    _espState = ESPState(
-      status: ESPStatus.processingAI,
-      message: 'Analyzing measurements...',
-      progress: 100,
-    );
+        debugPrint(
+          'Flutter State: MEASURING',
+        );
 
-    _state = ApiState.processingAI;
-  }
-}
+        if (espState.progress != null) {
+          debugPrint(
+            'Measurement progress: '
+            '${espState.progress}%',
+          );
+        }
+      }
 
-      //================================
+      // ==========================================================
       // PROCESSING AI
-      //================================
+      // ==========================================================
 
       else if (espState.isProcessingAI) {
-        _state =
-            ApiState.processingAI();
+        _state = ApiState.processingAI();
+
+        debugPrint(
+          'Flutter State: PROCESSING AI',
+        );
+
+        debugPrint(
+          'Message from ESP32: '
+          '${espState.message}',
+        );
       }
 
-      //================================
+      // ==========================================================
       // COMPLETED
-      //================================
+      // ==========================================================
 
       else if (espState.isCompleted) {
+        debugPrint(
+          'Flutter State: COMPLETED',
+        );
+
+        // --------------------------------------------------------
+        // The ESP32 completed JSON should contain:
+        //
+        // HR
+        // HRV
+        // SpO2
+        // body_temp
+        // env_temp
+        // humidity
+        // MQ2
+        // MQ5
+        // MQ135
+        // acc_mag
+        // gyro_mag
+        // prediction
+        // risk_score
+        // environment_stress
+        // activity_stress
+        // --------------------------------------------------------
+
+        if (data.containsKey('HR') &&
+            data.containsKey('SpO2')) {
+          try {
+            _healthData =
+                HealthResponse.fromJson(data);
+
+            debugPrint(
+              'Health data received successfully',
+            );
+
+            debugPrint(
+              'HR: ${data['HR']}',
+            );
+
+            debugPrint(
+              'SpO2: ${data['SpO2']}',
+            );
+
+            debugPrint(
+              'Body Temperature: '
+              '${data['body_temp']}',
+            );
+
+            debugPrint(
+              'Environment Temperature: '
+              '${data['env_temp']}',
+            );
+
+            debugPrint(
+              'Prediction: '
+              '${data['prediction']}',
+            );
+
+            debugPrint(
+              'Risk Score: '
+              '${data['risk_score']}',
+            );
+          }
+
+          catch (e) {
+            debugPrint(
+              'HealthResponse parsing error: $e',
+            );
+
+            _state = ApiState.error(
+              'Invalid health data received',
+            );
+
+            notifyListeners();
+
+            return;
+          }
+        }
+
         _state = ApiState.success(
           'Health analysis completed',
         );
 
-        // The completed JSON contains
-        // the complete health report.
-        if (data.containsKey('HR') &&
-            data.containsKey('SpO2')) {
-          _healthData =
-              HealthResponse.fromJson(data);
-        }
+        notifyListeners();
+
+        // --------------------------------------------------------
+        // Stop polling after completed result
+        // --------------------------------------------------------
 
         stopMonitoring();
+
+        return;
       }
 
-      //================================
+      // ==========================================================
       // ERROR
-      //================================
+      // ==========================================================
 
       else if (espState.isError) {
         _state = ApiState.error(
           espState.message,
+        );
+
+        debugPrint(
+          'ESP32 ERROR: ${espState.message}',
         );
 
         stopMonitoring();
@@ -232,6 +369,10 @@ if (data.containsKey('progress')) {
 
       notifyListeners();
     }
+
+    // ============================================================
+    // NETWORK ERROR
+    // ============================================================
 
     on NetworkException catch (e) {
       _state = ApiState.error(
@@ -243,16 +384,43 @@ if (data.containsKey('progress')) {
         message: e.message,
       );
 
+      debugPrint(
+        'NetworkException: ${e.message}',
+      );
+
+      stopMonitoring();
+
+      notifyListeners();
+    }
+
+    // ============================================================
+    // UNKNOWN ERROR
+    // ============================================================
+
+    catch (e) {
+      _state = ApiState.error(
+        'Unexpected error: $e',
+      );
+
+      _espState = ESPState(
+        status: ESPStatus.error,
+        message: 'Unexpected error: $e',
+      );
+
+      debugPrint(
+        'Unexpected ESP monitoring error: $e',
+      );
+
       stopMonitoring();
 
       notifyListeners();
     }
   }
 
-  //================================
-  // GET LAST DATA
+  // ============================================================
+  // GET LAST HEALTH DATA
   // Used by Dashboard
-  //================================
+  // ============================================================
 
   Future<void> getLatestHealthData() async {
     try {
@@ -275,16 +443,28 @@ if (data.containsKey('progress')) {
 
       notifyListeners();
     }
+
+    catch (e) {
+      _state = ApiState.error(
+        'Failed to load health data: $e',
+      );
+
+      notifyListeners();
+    }
   }
 
-  //================================
+  // ============================================================
   // STOP MONITORING
-  //================================
+  // ============================================================
 
   void stopMonitoring() {
     _monitorTimer?.cancel();
     _monitorTimer = null;
   }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
 
   @override
   void dispose() {
