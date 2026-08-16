@@ -18,23 +18,41 @@ class ESPState {
     this.progress,
   });
 
-  factory ESPState.fromJson(Map<String, dynamic> json) {
+  // ============================================================
+  // FROM JSON
+  // ============================================================
+
+  factory ESPState.fromJson(
+    Map<String, dynamic> json,
+  ) {
     final String value =
-        (json['status'] ?? 'idle').toString().toLowerCase();
+        (json['status'] ?? 'idle')
+            .toString()
+            .trim()
+            .toLowerCase();
 
     final String message =
-        json['message']?.toString() ?? 'Ready';
+        json['message']?.toString() ??
+            'Ready';
 
     final int? progress =
         (json['progress'] as num?)?.toInt();
 
     switch (value) {
+      // ----------------------------------------------------------
+      // READY
+      // ----------------------------------------------------------
+
       case 'ready':
         return ESPState(
           status: ESPStatus.idle,
           message: message,
           progress: progress,
         );
+
+      // ----------------------------------------------------------
+      // WAITING FOR FINGER
+      // ----------------------------------------------------------
 
       case 'waiting_finger':
         return ESPState(
@@ -43,12 +61,20 @@ class ESPState {
           progress: progress,
         );
 
+      // ----------------------------------------------------------
+      // MEASURING
+      // ----------------------------------------------------------
+
       case 'measuring':
         return ESPState(
           status: ESPStatus.measuring,
           message: message,
           progress: progress,
         );
+
+      // ----------------------------------------------------------
+      // AI PROCESSING
+      // ----------------------------------------------------------
 
       case 'processing':
       case 'processing_ai':
@@ -58,12 +84,20 @@ class ESPState {
           progress: progress,
         );
 
+      // ----------------------------------------------------------
+      // COMPLETED
+      // ----------------------------------------------------------
+
       case 'completed':
         return ESPState(
           status: ESPStatus.completed,
           message: message,
           progress: 100,
         );
+
+      // ----------------------------------------------------------
+      // ERRORS
+      // ----------------------------------------------------------
 
       case 'error':
       case 'wifi_error':
@@ -74,6 +108,10 @@ class ESPState {
           progress: progress,
         );
 
+      // ----------------------------------------------------------
+      // UNKNOWN
+      // ----------------------------------------------------------
+
       default:
         return ESPState(
           status: ESPStatus.idle,
@@ -82,6 +120,10 @@ class ESPState {
         );
     }
   }
+
+  // ============================================================
+  // STATE HELPERS
+  // ============================================================
 
   bool get isIdle =>
       status == ESPStatus.idle;
