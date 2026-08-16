@@ -6,7 +6,8 @@ class HealthResponse {
   final int heartRate;
   final int hrv;
   final int spo2;
-
+  final double bodyTemperature;
+  
   final double environmentTemperature;
   final double humidity;
 
@@ -29,6 +30,7 @@ class HealthResponse {
     required this.heartRate,
     required this.hrv,
     required this.spo2,
+    required this.bodyTemperature,
     required this.environmentTemperature,
     required this.humidity,
     required this.mq2,
@@ -64,6 +66,8 @@ class HealthResponse {
 
       spo2:
           (json['SpO2'] as num?)?.toInt() ?? 0,
+      bodyTemperature:
+          (json['body_temp'] as num?)?.toDouble() ?? 0,
 
       environmentTemperature:
           (json['env_temp'] as num?)?.toDouble() ?? 0,
