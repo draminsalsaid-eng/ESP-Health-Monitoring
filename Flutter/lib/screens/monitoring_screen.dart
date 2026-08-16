@@ -164,9 +164,14 @@ class MonitoringScreen extends StatelessWidget {
                   height: 55,
 
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
+                   onPressed: () {
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (_) => const DashboardScreen(),
+    ),
+  );
+},
 
                     icon: const Icon(
                       Icons.check_circle,
