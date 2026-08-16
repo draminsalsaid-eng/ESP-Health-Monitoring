@@ -159,10 +159,23 @@ class HealthProvider extends ChangeNotifier {
       // MEASURING
       //================================
 
-      else if (espState.isMeasuring) {
-        _state =
-            ApiState.readingData();
-      }
+    else if (espState.isMeasuring) {
+  _state = ApiState.readingData();
+
+  // When measurement reaches 100%,
+  // show AI analysis while ESP32 is sending
+  // the data to the API.
+  if (espState.progress != null &&
+      espState.progress! >= 100) {
+    _espState = ESPState(
+      status: ESPStatus.processingAI,
+      message: 'Analyzing measurements...',
+      progress: 100,
+    );
+
+    _state = ApiState.processingAI;
+  }
+}
 
       //================================
       // PROCESSING AI
