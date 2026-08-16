@@ -15,6 +15,8 @@ class HealthProvider extends ChangeNotifier {
 
   Timer? _monitorTimer;
 
+  bool _readingStatus = false;
+
   // ============================================================
   // API STATE
   // ============================================================
@@ -50,7 +52,9 @@ class HealthProvider extends ChangeNotifier {
     UserInput userInput,
   ) async {
     try {
-      // Clear previous result
+      // Stop any old monitoring session.
+      stopMonitoring();
+
       _healthData = null;
 
       _state = ApiState.connecting();
@@ -62,9 +66,9 @@ class HealthProvider extends ChangeNotifier {
 
       notifyListeners();
 
-      // ----------------------------------------------------------
-      // Check ESP32 connection
-      // ----------------------------------------------------------
+      // ========================================================
+      // CHECK ESP32 CONNECTION
+      // ========================================================
 
       final connected =
           await _espService.checkConnection();
@@ -84,19 +88,20 @@ class HealthProvider extends ChangeNotifier {
         return false;
       }
 
-      // ----------------------------------------------------------
-      // Send user information to ESP32
-      // ----------------------------------------------------------
+      // ========================================================
+      // SEND USER INFORMATION
+      // ========================================================
 
       await _espService.sendUserInput(
         userInput,
       );
 
-      // ----------------------------------------------------------
-      // ESP32 is now waiting for finger
-      // ----------------------------------------------------------
+      // ========================================================
+      // WAITING FOR FINGER
+      // ========================================================
 
-      _state = ApiState.waitingSensor();
+      _state =
+          ApiState.waitingSensor();
 
       _espState = const ESPState(
         status: ESPStatus.waitingFinger,
@@ -106,9 +111,9 @@ class HealthProvider extends ChangeNotifier {
 
       notifyListeners();
 
-      // ----------------------------------------------------------
-      // Start monitoring ESP32
-      // ----------------------------------------------------------
+      // ========================================================
+      // START STATUS MONITORING
+      // ========================================================
 
       _startMonitoringLoop();
 
@@ -166,26 +171,25 @@ class HealthProvider extends ChangeNotifier {
   // ============================================================
 
   Future<void> _readESPStatus() async {
+    // Prevent overlapping HTTP requests.
+    if (_readingStatus) {
+      return;
+    }
+
+    _readingStatus = true;
+
     try {
       final data =
           await _espService.readESPStatusJson();
 
-      // ----------------------------------------------------------
-      // Convert JSON -> ESPState
-      // ----------------------------------------------------------
+      debugPrint(
+        'ESP32 STATUS JSON: $data',
+      );
 
-      final espState =
+      final ESPState espState =
           ESPState.fromJson(data);
 
       _espState = espState;
-
-      // ----------------------------------------------------------
-      // DEBUG
-      // ----------------------------------------------------------
-
-      debugPrint(
-        '==========================================',
-      );
 
       debugPrint(
         'ESP32 STATUS: ${data['status']}',
@@ -201,86 +205,57 @@ class HealthProvider extends ChangeNotifier {
         );
       }
 
-      debugPrint(
-        '==========================================',
-      );
-
-      // ==========================================================
+      // ========================================================
       // WAITING FOR FINGER
-      // ==========================================================
+      // ========================================================
 
       if (espState.isWaitingFinger) {
-        _state = ApiState.waitingSensor();
-
-        debugPrint(
-          'Flutter State: WAITING FOR FINGER',
-        );
+        _state =
+            ApiState.waitingSensor();
       }
 
-      // ==========================================================
+      // ========================================================
       // MEASURING
-      // ==========================================================
+      // ========================================================
 
       else if (espState.isMeasuring) {
-        _state = ApiState.readingData();
+        _state =
+            ApiState.readingData();
 
-        debugPrint(
-          'Flutter State: MEASURING',
-        );
-
-        if (espState.progress != null) {
-          debugPrint(
-            'Measurement progress: '
-            '${espState.progress}%',
-          );
-        }
+        // Do NOT mark completed here.
+        //
+        // progress == 100 means MAX30105 finished collecting
+        // its samples, but ESP32 still needs to:
+        //
+        // 1. finish other sensors
+        // 2. calculate final values
+        // 3. send JSON to API
+        // 4. receive AI response
+        // 5. create final completed JSON
       }
 
-      // ==========================================================
+      // ========================================================
       // PROCESSING AI
-      // ==========================================================
+      // ========================================================
 
       else if (espState.isProcessingAI) {
-        _state = ApiState.processingAI();
-
-        debugPrint(
-          'Flutter State: PROCESSING AI',
-        );
-
-        debugPrint(
-          'Message from ESP32: '
-          '${espState.message}',
-        );
+        _state =
+            ApiState.processingAI();
       }
 
-      // ==========================================================
+      // ========================================================
       // COMPLETED
-      // ==========================================================
+      // ========================================================
 
       else if (espState.isCompleted) {
-        debugPrint(
-          'Flutter State: COMPLETED',
+        _state = ApiState.success(
+          'Health analysis completed',
         );
 
-        // --------------------------------------------------------
-        // The ESP32 completed JSON should contain:
-        //
-        // HR
-        // HRV
-        // SpO2
-        // body_temp
-        // env_temp
-        // humidity
-        // MQ2
-        // MQ5
-        // MQ135
-        // acc_mag
-        // gyro_mag
-        // prediction
-        // risk_score
-        // environment_stress
-        // activity_stress
-        // --------------------------------------------------------
+        // ======================================================
+        // IMPORTANT:
+        // Parse the COMPLETE ESP32 JSON.
+        // ======================================================
 
         if (data.containsKey('HR') &&
             data.containsKey('SpO2')) {
@@ -289,79 +264,78 @@ class HealthProvider extends ChangeNotifier {
                 HealthResponse.fromJson(data);
 
             debugPrint(
-              'Health data received successfully',
+              '==============================',
             );
 
             debugPrint(
-              'HR: ${data['HR']}',
+              'FINAL HEALTH DATA RECEIVED',
             );
 
             debugPrint(
-              'SpO2: ${data['SpO2']}',
+              'HR: ${_healthData!.heartRate}',
+            );
+
+            debugPrint(
+              'SpO2: ${_healthData!.spo2}',
             );
 
             debugPrint(
               'Body Temperature: '
-              '${data['body_temp']}',
+              '${_healthData!.bodyTemperature}',
             );
 
             debugPrint(
               'Environment Temperature: '
-              '${data['env_temp']}',
+              '${_healthData!.environmentTemperature}',
             );
 
             debugPrint(
               'Prediction: '
-              '${data['prediction']}',
+              '${_healthData!.prediction}',
             );
 
             debugPrint(
               'Risk Score: '
-              '${data['risk_score']}',
+              '${_healthData!.riskScore}',
+            );
+
+            debugPrint(
+              '==============================',
             );
           }
 
           catch (e) {
             debugPrint(
-              'HealthResponse parsing error: $e',
+              'Failed to parse health response: $e',
             );
 
             _state = ApiState.error(
               'Invalid health data received',
             );
-
-            notifyListeners();
-
-            return;
           }
         }
+        else {
+          debugPrint(
+            'Completed status received but '
+            'HR/SpO2 are missing.',
+          );
 
-        _state = ApiState.success(
-          'Health analysis completed',
-        );
+          _state = ApiState.error(
+            'Incomplete health data received',
+          );
+        }
 
-        notifyListeners();
-
-        // --------------------------------------------------------
-        // Stop polling after completed result
-        // --------------------------------------------------------
-
+        // Stop polling after completed result.
         stopMonitoring();
-
-        return;
       }
 
-      // ==========================================================
+      // ========================================================
       // ERROR
-      // ==========================================================
+      // ========================================================
 
       else if (espState.isError) {
         _state = ApiState.error(
           espState.message,
-        );
-
-        debugPrint(
-          'ESP32 ERROR: ${espState.message}',
         );
 
         stopMonitoring();
@@ -369,10 +343,6 @@ class HealthProvider extends ChangeNotifier {
 
       notifyListeners();
     }
-
-    // ============================================================
-    // NETWORK ERROR
-    // ============================================================
 
     on NetworkException catch (e) {
       _state = ApiState.error(
@@ -384,41 +354,38 @@ class HealthProvider extends ChangeNotifier {
         message: e.message,
       );
 
-      debugPrint(
-        'NetworkException: ${e.message}',
-      );
-
       stopMonitoring();
 
       notifyListeners();
     }
 
-    // ============================================================
-    // UNKNOWN ERROR
-    // ============================================================
-
     catch (e) {
+      debugPrint(
+        'ESP status read error: $e',
+      );
+
       _state = ApiState.error(
-        'Unexpected error: $e',
+        'Failed to read ESP32 status',
       );
 
       _espState = ESPState(
         status: ESPStatus.error,
-        message: 'Unexpected error: $e',
-      );
-
-      debugPrint(
-        'Unexpected ESP monitoring error: $e',
+        message:
+            'Failed to communicate with ESP32',
       );
 
       stopMonitoring();
 
       notifyListeners();
     }
+
+    finally {
+      _readingStatus = false;
+    }
   }
 
   // ============================================================
-  // GET LAST HEALTH DATA
+  // GET LATEST HEALTH DATA
   // Used by Dashboard
   // ============================================================
 
@@ -446,7 +413,7 @@ class HealthProvider extends ChangeNotifier {
 
     catch (e) {
       _state = ApiState.error(
-        'Failed to load health data: $e',
+        'Failed to load health data',
       );
 
       notifyListeners();
@@ -460,6 +427,7 @@ class HealthProvider extends ChangeNotifier {
   void stopMonitoring() {
     _monitorTimer?.cancel();
     _monitorTimer = null;
+    _readingStatus = false;
   }
 
   // ============================================================
