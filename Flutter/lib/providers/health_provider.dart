@@ -145,7 +145,19 @@ class HealthProvider extends ChangeNotifier {
           ESPState.fromJson(data);
 
       _espState = espState;
+       debugPrint(
+  'ESP32 STATUS: ${data['status']}',
+);
 
+debugPrint(
+  'ESP32 MESSAGE: ${data['message']}',
+);
+
+if (data.containsKey('progress')) {
+  debugPrint(
+    'ESP32 PROGRESS: ${data['progress']}%',
+  );
+}
       //================================
       // WAITING FOR FINGER
       //================================
