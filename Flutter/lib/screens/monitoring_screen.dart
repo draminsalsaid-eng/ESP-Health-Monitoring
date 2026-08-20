@@ -7,7 +7,7 @@ import '../providers/health_provider.dart';
 
 import 'dashboard_screen.dart';
 
-class MonitoringScreen extends StatelessWidget {
+class MonitoringScreen extends StatefulWidget {
   final UserInput userInput;
 
   const MonitoringScreen({
@@ -16,35 +16,62 @@ class MonitoringScreen extends StatelessWidget {
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  State<MonitoringScreen> createState() =>
+      _MonitoringScreenState();
+}
+
+class _MonitoringScreenState
+    extends State<MonitoringScreen> {
+
+  @override
+  void initState() {
+    super.initState();
+
+    // ==========================================================
+    // START MONITORING AFTER SCREEN IS CREATED
+    // ==========================================================
+
+    Future.microtask(() {
+      if (!mounted) {
+        return;
+      }
+
+      Provider.of<HealthProvider>(
+        context,
+        listen: false,
+      ).startMonitoring(
+        widget.userInput,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final health =
-        Provider.of<HealthProvider>(
-      context,
-    );
+        Provider.of<HealthProvider>(context);
 
     final ESPState esp =
         health.espState;
 
     return Scaffold(
       appBar: AppBar(
-        title:
-            const Text(
+        title: const Text(
           'Health Monitoring',
         ),
         centerTitle: true,
-        automaticallyImplyLeading:
-            false,
+
+        // Prevent going back while measurement
+        // is running.
+        automaticallyImplyLeading: false,
       ),
 
       body: SafeArea(
         child: Padding(
-          padding:
-              const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(20),
 
           child: Column(
             children: [
+
               // ==================================================
               // MONITORING PROFILE
               // ==================================================
@@ -61,10 +88,11 @@ class MonitoringScreen extends StatelessWidget {
                         CrossAxisAlignment.start,
 
                     children: [
+
                       const Text(
                         'Monitoring Profile',
-                        style:
-                            TextStyle(
+
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight:
                               FontWeight.bold,
@@ -77,17 +105,17 @@ class MonitoringScreen extends StatelessWidget {
 
                       _infoRow(
                         'Worker',
-                        userInput.workerType,
+                        widget.userInput.workerType,
                       ),
 
                       _infoRow(
                         'Activity',
-                        userInput.activity,
+                        widget.userInput.activity,
                       ),
 
                       _infoRow(
                         'Environment',
-                        userInput.environment,
+                        widget.userInput.environment,
                       ),
                     ],
                   ),
@@ -118,8 +146,7 @@ class MonitoringScreen extends StatelessWidget {
                 textAlign:
                     TextAlign.center,
 
-                style:
-                    const TextStyle(
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight:
                       FontWeight.bold,
@@ -155,35 +182,64 @@ class MonitoringScreen extends StatelessWidget {
               // MEASUREMENT PROGRESS
               // ==================================================
 
-              if (esp.isMeasuring &&
-                  esp.progress != null) ...[
-                LinearProgressIndicator(
-                  value:
-                      (esp.progress! / 100)
-                          .clamp(0.0, 1.0),
+              if (esp.isMeasuring) ...[
+                if (esp.progress != null) ...[
+                  LinearProgressIndicator(
+                    value:
+                        (esp.progress! / 100)
+                            .clamp(0.0, 1.0),
 
-                  minHeight: 10,
+                    minHeight: 10,
 
-                  borderRadius:
-                      BorderRadius.circular(
-                    10,
+                    borderRadius:
+                        BorderRadius.circular(
+                      10,
+                    ),
                   ),
-                ),
 
+                  const SizedBox(
+                    height: 10,
+                  ),
+
+                  Text(
+                    '${esp.progress}%',
+
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight:
+                          FontWeight.bold,
+                    ),
+                  ),
+                ] else ...[
+                  const LinearProgressIndicator(
+                    minHeight: 10,
+                  ),
+
+                  const SizedBox(
+                    height: 10,
+                  ),
+
+                  const Text(
+                    'Measuring...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight:
+                          FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ],
+
+              // ==================================================
+              // WAITING FOR FINGER
+              // ==================================================
+
+              if (esp.isWaitingFinger) ...[
                 const SizedBox(
-                  height: 10,
+                  height: 15,
                 ),
 
-                Text(
-                  '${esp.progress}%',
-
-                  style:
-                      const TextStyle(
-                    fontSize: 16,
-                    fontWeight:
-                        FontWeight.bold,
-                  ),
-                ),
+                _buildFingerInstructions(),
               ],
 
               // ==================================================
@@ -195,7 +251,9 @@ class MonitoringScreen extends StatelessWidget {
                   height: 10,
                 ),
 
-                const LinearProgressIndicator(),
+                const LinearProgressIndicator(
+                  minHeight: 8,
+                ),
 
                 const SizedBox(
                   height: 15,
@@ -206,8 +264,35 @@ class MonitoringScreen extends StatelessWidget {
                   textAlign:
                       TextAlign.center,
 
-                  style:
-                      TextStyle(
+                  style: TextStyle(
+                    fontSize: 15,
+                    color:
+                        Colors.grey.shade700,
+                  ),
+                ),
+              ],
+
+              // ==================================================
+              // IDLE / CONNECTING
+              // ==================================================
+
+              if (esp.isIdle) ...[
+                const SizedBox(
+                  height: 15,
+                ),
+
+                const CircularProgressIndicator(),
+
+                const SizedBox(
+                  height: 15,
+                ),
+
+                Text(
+                  esp.message,
+                  textAlign:
+                      TextAlign.center,
+
+                  style: TextStyle(
                     fontSize: 15,
                     color:
                         Colors.grey.shade700,
@@ -222,11 +307,11 @@ class MonitoringScreen extends StatelessWidget {
               // ==================================================
 
               if (esp.isCompleted &&
-                  health.healthData !=
-                      null)
+                  health.healthData != null)
                 SizedBox(
                   width:
                       double.infinity,
+
                   height: 55,
 
                   child:
@@ -241,16 +326,14 @@ class MonitoringScreen extends StatelessWidget {
                       );
                     },
 
-                    icon:
-                        const Icon(
+                    icon: const Icon(
                       Icons.check_circle,
                     ),
 
-                    label:
-                        const Text(
+                    label: const Text(
                       'VIEW HEALTH DASHBOARD',
-                      style:
-                          TextStyle(
+
+                      style: TextStyle(
                         fontSize: 17,
                         fontWeight:
                             FontWeight.bold,
@@ -264,28 +347,101 @@ class MonitoringScreen extends StatelessWidget {
               // ==================================================
 
               if (esp.isError)
-                SizedBox(
-                  width:
-                      double.infinity,
-                  height: 55,
+                Column(
+                  children: [
 
-                  child:
-                      ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(
-                        context,
-                      );
-                    },
+                    Container(
+                      width:
+                          double.infinity,
 
-                    child:
-                        const Text(
-                      'BACK',
-                      style:
-                          TextStyle(
-                        fontSize: 17,
+                      padding:
+                          const EdgeInsets.all(
+                        15,
+                      ),
+
+                      decoration:
+                          BoxDecoration(
+                        color: Colors.red
+                            .withOpacity(0.08),
+
+                        borderRadius:
+                            BorderRadius.circular(
+                          12,
+                        ),
+
+                        border: Border.all(
+                          color:
+                              Colors.red
+                                  .withOpacity(
+                            0.3,
+                          ),
+                        ),
+                      ),
+
+                      child: Row(
+                        children: [
+
+                          const Icon(
+                            Icons.error,
+                            color: Colors.red,
+                          ),
+
+                          const SizedBox(
+                            width: 10,
+                          ),
+
+                          Expanded(
+                            child: Text(
+                              esp.message,
+
+                              style:
+                                  const TextStyle(
+                                color:
+                                    Colors.red,
+                                fontSize: 15,
+                                fontWeight:
+                                    FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
+
+                    const SizedBox(
+                      height: 15,
+                    ),
+
+                    SizedBox(
+                      width:
+                          double.infinity,
+
+                      height: 55,
+
+                      child:
+                          ElevatedButton(
+                        onPressed: () {
+                          Provider.of<
+                              HealthProvider>(
+                            context,
+                            listen: false,
+                          ).reset();
+
+                          Navigator.pop(
+                            context,
+                          );
+                        },
+
+                        child: const Text(
+                          'BACK',
+
+                          style: TextStyle(
+                            fontSize: 17,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),
@@ -310,17 +466,97 @@ class MonitoringScreen extends StatelessWidget {
 
       child: Row(
         children: [
+
           Text(
             '$title: ',
-            style:
-                const TextStyle(
+
+            style: const TextStyle(
               fontWeight:
                   FontWeight.bold,
             ),
           ),
 
           Expanded(
-            child: Text(value),
+            child: Text(
+              value.isEmpty
+                  ? 'Not specified'
+                  : value,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // FINGER INSTRUCTIONS
+  // ============================================================
+
+  Widget _buildFingerInstructions() {
+    return Container(
+      width: double.infinity,
+
+      padding:
+          const EdgeInsets.all(18),
+
+      decoration: BoxDecoration(
+        color:
+            Colors.orange.withOpacity(
+          0.08,
+        ),
+
+        borderRadius:
+            BorderRadius.circular(15),
+
+        border: Border.all(
+          color:
+              Colors.orange.withOpacity(
+            0.3,
+          ),
+        ),
+      ),
+
+      child: Column(
+        children: [
+
+          const Icon(
+            Icons.touch_app,
+            size: 45,
+            color: Colors.orange,
+          ),
+
+          const SizedBox(
+            height: 10,
+          ),
+
+          const Text(
+            'Place your finger on both sensors',
+
+            textAlign:
+                TextAlign.center,
+
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight:
+                  FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(
+            height: 8,
+          ),
+
+          Text(
+            'Keep your finger still until the measurement is complete.',
+
+            textAlign:
+                TextAlign.center,
+
+            style: TextStyle(
+              fontSize: 14,
+              color:
+                  Colors.grey.shade700,
+            ),
           ),
         ],
       ),
@@ -337,53 +573,82 @@ class MonitoringScreen extends StatelessWidget {
     IconData icon;
     Color color;
 
+    // ----------------------------------------------------------
+    // WAITING FOR FINGER
+    // ----------------------------------------------------------
+
     if (esp.isWaitingFinger) {
-      icon =
-          Icons.touch_app;
-      color =
-          Colors.orange;
+      icon = Icons.touch_app;
+      color = Colors.orange;
     }
+
+    // ----------------------------------------------------------
+    // MEASURING
+    // ----------------------------------------------------------
 
     else if (esp.isMeasuring) {
-      icon =
-          Icons.monitor_heart;
-      color =
-          Colors.red;
+      icon = Icons.monitor_heart;
+      color = Colors.red;
     }
+
+    // ----------------------------------------------------------
+    // AI PROCESSING
+    // ----------------------------------------------------------
 
     else if (esp.isProcessingAI) {
-      icon =
-          Icons.psychology;
-      color =
-          Colors.blue;
+      icon = Icons.psychology;
+      color = Colors.blue;
     }
+
+    // ----------------------------------------------------------
+    // COMPLETED
+    // ----------------------------------------------------------
 
     else if (esp.isCompleted) {
-      icon =
-          Icons.check_circle;
-      color =
-          Colors.green;
+      icon = Icons.check_circle;
+      color = Colors.green;
     }
+
+    // ----------------------------------------------------------
+    // ERROR
+    // ----------------------------------------------------------
 
     else if (esp.isError) {
-      icon =
-          Icons.error;
-      color =
-          Colors.red;
+      icon = Icons.error;
+      color = Colors.red;
     }
+
+    // ----------------------------------------------------------
+    // IDLE / CONNECTING
+    // ----------------------------------------------------------
 
     else {
-      icon =
-          Icons.health_and_safety;
-      color =
-          Colors.blue;
+      icon = Icons.health_and_safety;
+      color = Colors.blue;
     }
 
-    return CircleAvatar(
-      radius: 45,
+    return AnimatedContainer(
+      duration:
+          const Duration(milliseconds: 300),
 
-      backgroundColor:
-          color.withOpacity(0.12),
+      width: 100,
+      height: 100,
+
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+
+        color: color.withOpacity(
+          0.12,
+        ),
+
+        border: Border.all(
+          color: color.withOpacity(
+            0.25,
+          ),
+
+          width: 2,
+        ),
+      ),
 
       child: Icon(
         icon,
