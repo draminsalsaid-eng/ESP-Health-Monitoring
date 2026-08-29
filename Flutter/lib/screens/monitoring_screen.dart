@@ -23,10 +23,6 @@ class MonitoringScreen extends StatefulWidget {
 class _MonitoringScreenState
     extends State<MonitoringScreen> {
 
-  @override
-  void initState() {
-    super.initState();
-
     // ==========================================================
     // START MONITORING AFTER SCREEN IS CREATED
     // ==========================================================
