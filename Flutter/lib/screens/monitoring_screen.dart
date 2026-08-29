@@ -23,23 +23,18 @@ class MonitoringScreen extends StatefulWidget {
 class _MonitoringScreenState
     extends State<MonitoringScreen> {
 
-    // ==========================================================
-    // START MONITORING AFTER SCREEN IS CREATED
-    // ==========================================================
+  // ============================================================
+  // INIT
+  // ============================================================
 
-    Future.microtask(() {
-      if (!mounted) {
-        return;
-      }
-
-      Provider.of<HealthProvider>(
-        context,
-        listen: false,
-      ).startMonitoring(
-        widget.userInput,
-      );
-    });
+  @override
+  void initState() {
+    super.initState();
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -49,397 +44,188 @@ class _MonitoringScreenState
     final ESPState esp =
         health.espState;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Health Monitoring',
+    return PopScope(
+      canPop: esp.isCompleted || esp.isError,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'Health Monitoring',
+          ),
+          centerTitle: true,
+
+          automaticallyImplyLeading:
+              esp.isCompleted || esp.isError,
         ),
-        centerTitle: true,
 
-        // Prevent going back while measurement
-        // is running.
-        automaticallyImplyLeading: false,
-      ),
+        body: SafeArea(
+          child: Padding(
+            padding:
+                const EdgeInsets.all(20),
 
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
 
-          child: Column(
-            children: [
+                // ==================================================
+                // MONITORING PROFILE
+                // ==================================================
 
-              // ==================================================
-              // MONITORING PROFILE
-              // ==================================================
+                Card(
+                  elevation: 3,
 
-              Card(
-                elevation: 3,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.all(18),
 
-                child: Padding(
-                  padding:
-                      const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
 
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                      children: [
 
-                    children: [
+                        const Text(
+                          'Monitoring Profile',
 
-                      const Text(
-                        'Monitoring Profile',
-
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight:
-                              FontWeight.bold,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight:
+                                FontWeight.bold,
+                          ),
                         ),
-                      ),
 
-                      const SizedBox(
-                        height: 15,
-                      ),
+                        const SizedBox(
+                          height: 15,
+                        ),
 
-                      _infoRow(
-                        'Worker',
-                        widget.userInput.workerType,
-                      ),
+                        _infoRow(
+                          'Worker',
+                          widget.userInput.workerType,
+                        ),
 
-                      _infoRow(
-                        'Activity',
-                        widget.userInput.activity,
-                      ),
+                        _infoRow(
+                          'Activity',
+                          widget.userInput.activity,
+                        ),
 
-                      _infoRow(
-                        'Environment',
-                        widget.userInput.environment,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(
-                height: 30,
-              ),
-
-              // ==================================================
-              // STATUS ICON
-              // ==================================================
-
-              _buildStatusIcon(esp),
-
-              const SizedBox(
-                height: 20,
-              ),
-
-              // ==================================================
-              // STATUS TITLE
-              // ==================================================
-
-              Text(
-                _statusTitle(esp),
-
-                textAlign:
-                    TextAlign.center,
-
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight:
-                      FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(
-                height: 12,
-              ),
-
-              // ==================================================
-              // STATUS MESSAGE
-              // ==================================================
-
-              Text(
-                esp.message,
-
-                textAlign:
-                    TextAlign.center,
-
-                style: TextStyle(
-                  fontSize: 17,
-                  color:
-                      Colors.grey.shade700,
-                ),
-              ),
-
-              const SizedBox(
-                height: 25,
-              ),
-
-              // ==================================================
-              // MEASUREMENT PROGRESS
-              // ==================================================
-
-              if (esp.isMeasuring) ...[
-                if (esp.progress != null) ...[
-                  LinearProgressIndicator(
-                    value:
-                        (esp.progress! / 100)
-                            .clamp(0.0, 1.0),
-
-                    minHeight: 10,
-
-                    borderRadius:
-                        BorderRadius.circular(
-                      10,
+                        _infoRow(
+                          'Environment',
+                          widget.userInput.environment,
+                        ),
+                      ],
                     ),
                   ),
-
-                  const SizedBox(
-                    height: 10,
-                  ),
-
-                  Text(
-                    '${esp.progress}%',
-
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight:
-                          FontWeight.bold,
-                    ),
-                  ),
-                ] else ...[
-                  const LinearProgressIndicator(
-                    minHeight: 10,
-                  ),
-
-                  const SizedBox(
-                    height: 10,
-                  ),
-
-                  const Text(
-                    'Measuring...',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight:
-                          FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ],
-
-              // ==================================================
-              // WAITING FOR FINGER
-              // ==================================================
-
-              if (esp.isWaitingFinger) ...[
-                const SizedBox(
-                  height: 15,
-                ),
-
-                _buildFingerInstructions(),
-              ],
-
-              // ==================================================
-              // AI PROCESSING
-              // ==================================================
-
-              if (esp.isProcessingAI) ...[
-                const SizedBox(
-                  height: 10,
-                ),
-
-                const LinearProgressIndicator(
-                  minHeight: 8,
                 ),
 
                 const SizedBox(
-                  height: 15,
+                  height: 30,
                 ),
+
+                // ==================================================
+                // STATUS ICON
+                // ==================================================
+
+                _buildStatusIcon(
+                  esp,
+                ),
+
+                const SizedBox(
+                  height: 20,
+                ),
+
+                // ==================================================
+                // STATUS TITLE
+                // ==================================================
 
                 Text(
-                  'Please wait while the AI analyzes the measurements...',
+                  _statusTitle(esp),
+
                   textAlign:
                       TextAlign.center,
 
-                  style: TextStyle(
-                    fontSize: 15,
-                    color:
-                        Colors.grey.shade700,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight:
+                        FontWeight.bold,
                   ),
                 ),
-              ],
-
-              // ==================================================
-              // IDLE / CONNECTING
-              // ==================================================
-
-              if (esp.isIdle) ...[
-                const SizedBox(
-                  height: 15,
-                ),
-
-                const CircularProgressIndicator(),
 
                 const SizedBox(
-                  height: 15,
+                  height: 12,
                 ),
+
+                // ==================================================
+                // STATUS MESSAGE
+                // ==================================================
 
                 Text(
                   esp.message,
+
                   textAlign:
                       TextAlign.center,
 
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 17,
                     color:
                         Colors.grey.shade700,
                   ),
                 ),
-              ],
 
-              const Spacer(),
+                const SizedBox(
+                  height: 25,
+                ),
 
-              // ==================================================
-              // COMPLETED
-              // ==================================================
+                // ==================================================
+                // MEASUREMENT PROGRESS
+                // ==================================================
 
-              if (esp.isCompleted &&
-                  health.healthData != null)
-                SizedBox(
-                  width:
-                      double.infinity,
-
-                  height: 55,
-
-                  child:
-                      ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              const DashboardScreen(),
-                        ),
-                      );
-                    },
-
-                    icon: const Icon(
-                      Icons.check_circle,
-                    ),
-
-                    label: const Text(
-                      'VIEW HEALTH DASHBOARD',
-
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight:
-                            FontWeight.bold,
-                      ),
-                    ),
+                if (esp.isMeasuring)
+                  _buildMeasurementProgress(
+                    esp,
                   ),
-                ),
 
-              // ==================================================
-              // ERROR
-              // ==================================================
+                // ==================================================
+                // WAITING FOR FINGER
+                // ==================================================
 
-              if (esp.isError)
-                Column(
-                  children: [
+                if (esp.isWaitingFinger)
+                  _buildFingerInstructions(),
 
-                    Container(
-                      width:
-                          double.infinity,
+                // ==================================================
+                // AI PROCESSING
+                // ==================================================
 
-                      padding:
-                          const EdgeInsets.all(
-                        15,
-                      ),
+                if (esp.isProcessingAI)
+                  _buildAIProcessing(),
 
-                      decoration:
-                          BoxDecoration(
-                        color: Colors.red
-                            .withOpacity(0.08),
+                // ==================================================
+                // CONNECTING / IDLE
+                // ==================================================
 
-                        borderRadius:
-                            BorderRadius.circular(
-                          12,
-                        ),
+                if (esp.isIdle)
+                  _buildIdleState(
+                    esp,
+                  ),
 
-                        border: Border.all(
-                          color:
-                              Colors.red
-                                  .withOpacity(
-                            0.3,
-                          ),
-                        ),
-                      ),
+                const Spacer(),
 
-                      child: Row(
-                        children: [
+                // ==================================================
+                // COMPLETED
+                // ==================================================
 
-                          const Icon(
-                            Icons.error,
-                            color: Colors.red,
-                          ),
+                if (esp.isCompleted)
+                  _buildCompletedSection(
+                    health,
+                  ),
 
-                          const SizedBox(
-                            width: 10,
-                          ),
+                // ==================================================
+                // ERROR
+                // ==================================================
 
-                          Expanded(
-                            child: Text(
-                              esp.message,
-
-                              style:
-                                  const TextStyle(
-                                color:
-                                    Colors.red,
-                                fontSize: 15,
-                                fontWeight:
-                                    FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 15,
-                    ),
-
-                    SizedBox(
-                      width:
-                          double.infinity,
-
-                      height: 55,
-
-                      child:
-                          ElevatedButton(
-                        onPressed: () {
-                          Provider.of<
-                              HealthProvider>(
-                            context,
-                            listen: false,
-                          ).reset();
-
-                          Navigator.pop(
-                            context,
-                          );
-                        },
-
-                        child: const Text(
-                          'BACK',
-
-                          style: TextStyle(
-                            fontSize: 17,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-            ],
+                if (esp.isError)
+                  _buildErrorSection(
+                    health,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -485,6 +271,72 @@ class _MonitoringScreenState
   }
 
   // ============================================================
+  // MEASUREMENT PROGRESS
+  // ============================================================
+
+  Widget _buildMeasurementProgress(
+    ESPState esp,
+  ) {
+    if (esp.progress != null) {
+      final double progressValue =
+          (esp.progress! / 100)
+              .clamp(0.0, 1.0);
+
+      return Column(
+        children: [
+
+          LinearProgressIndicator(
+            value: progressValue,
+            minHeight: 10,
+
+            borderRadius:
+                BorderRadius.circular(
+              10,
+            ),
+          ),
+
+          const SizedBox(
+            height: 10,
+          ),
+
+          Text(
+            '${esp.progress}%',
+
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight:
+                  FontWeight.bold,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      children: const [
+
+        LinearProgressIndicator(
+          minHeight: 10,
+        ),
+
+        SizedBox(
+          height: 10,
+        ),
+
+        Text(
+          'Measuring...',
+
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight:
+                FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
   // FINGER INSTRUCTIONS
   // ============================================================
 
@@ -517,12 +369,12 @@ class _MonitoringScreenState
 
           const Icon(
             Icons.touch_app,
-            size: 45,
+            size: 55,
             color: Colors.orange,
           ),
 
           const SizedBox(
-            height: 10,
+            height: 12,
           ),
 
           const Text(
@@ -532,14 +384,14 @@ class _MonitoringScreenState
                 TextAlign.center,
 
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 18,
               fontWeight:
                   FontWeight.bold,
             ),
           ),
 
           const SizedBox(
-            height: 8,
+            height: 10,
           ),
 
           Text(
@@ -556,6 +408,303 @@ class _MonitoringScreenState
           ),
         ],
       ),
+    );
+  }
+
+  // ============================================================
+  // AI PROCESSING
+  // ============================================================
+
+  Widget _buildAIProcessing() {
+    return Column(
+      children: [
+
+        const LinearProgressIndicator(
+          minHeight: 8,
+        ),
+
+        const SizedBox(
+          height: 20,
+        ),
+
+        const Icon(
+          Icons.psychology,
+          size: 55,
+          color: Colors.blue,
+        ),
+
+        const SizedBox(
+          height: 10,
+        ),
+
+        Text(
+          'Please wait while the AI analyzes the measurements...',
+
+          textAlign:
+              TextAlign.center,
+
+          style: TextStyle(
+            fontSize: 15,
+            color:
+                Colors.grey.shade700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // IDLE / CONNECTING
+  // ============================================================
+
+  Widget _buildIdleState(
+    ESPState esp,
+  ) {
+    return Column(
+      children: [
+
+        const CircularProgressIndicator(),
+
+        const SizedBox(
+          height: 15,
+        ),
+
+        Text(
+          esp.message,
+
+          textAlign:
+              TextAlign.center,
+
+          style: TextStyle(
+            fontSize: 15,
+            color:
+                Colors.grey.shade700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // COMPLETED
+  // ============================================================
+
+  Widget _buildCompletedSection(
+    HealthProvider health,
+  ) {
+    return Column(
+      children: [
+
+        Container(
+          width: double.infinity,
+
+          padding:
+              const EdgeInsets.all(16),
+
+          decoration: BoxDecoration(
+            color:
+                Colors.green.withOpacity(
+              0.08,
+            ),
+
+            borderRadius:
+                BorderRadius.circular(
+              12,
+            ),
+
+            border: Border.all(
+              color:
+                  Colors.green.withOpacity(
+                0.3,
+              ),
+            ),
+          ),
+
+          child: const Row(
+            children: [
+
+              Icon(
+                Icons.check_circle,
+                color: Colors.green,
+                size: 30,
+              ),
+
+              SizedBox(
+                width: 12,
+              ),
+
+              Expanded(
+                child: Text(
+                  'Measurement completed successfully.',
+
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontSize: 15,
+                    fontWeight:
+                        FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(
+          height: 15,
+        ),
+
+        SizedBox(
+          width: double.infinity,
+
+          height: 55,
+
+          child: ElevatedButton.icon(
+            onPressed:
+                health.healthData == null
+                    ? null
+                    : () {
+                        Navigator.pushReplacement(
+                          context,
+
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const DashboardScreen(),
+                          ),
+                        );
+                      },
+
+            icon: const Icon(
+              Icons.dashboard,
+            ),
+
+            label: const Text(
+              'VIEW HEALTH DASHBOARD',
+
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight:
+                    FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+
+        if (health.healthData == null)
+          const Padding(
+            padding:
+                EdgeInsets.only(
+              top: 10,
+            ),
+
+            child: Text(
+              'Loading health results...',
+
+              textAlign:
+                  TextAlign.center,
+
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 13,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // ERROR
+  // ============================================================
+
+  Widget _buildErrorSection(
+    HealthProvider health,
+  ) {
+    return Column(
+      children: [
+
+        Container(
+          width: double.infinity,
+
+          padding:
+              const EdgeInsets.all(15),
+
+          decoration: BoxDecoration(
+            color:
+                Colors.red.withOpacity(
+              0.08,
+            ),
+
+            borderRadius:
+                BorderRadius.circular(
+              12,
+            ),
+
+            border: Border.all(
+              color:
+                  Colors.red.withOpacity(
+                0.3,
+              ),
+            ),
+          ),
+
+          child: Row(
+            children: [
+
+              const Icon(
+                Icons.error,
+                color: Colors.red,
+              ),
+
+              const SizedBox(
+                width: 10,
+              ),
+
+              Expanded(
+                child: Text(
+                  health.error ??
+                      health.espState.message,
+
+                  style:
+                      const TextStyle(
+                    color: Colors.red,
+                    fontSize: 15,
+                    fontWeight:
+                        FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(
+          height: 15,
+        ),
+
+        SizedBox(
+          width: double.infinity,
+
+          height: 55,
+
+          child: ElevatedButton(
+            onPressed: () {
+              health.reset();
+
+              Navigator.pop(
+                context,
+              );
+            },
+
+            child: const Text(
+              'BACK',
+
+              style: TextStyle(
+                fontSize: 17,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -625,7 +774,9 @@ class _MonitoringScreenState
 
     return AnimatedContainer(
       duration:
-          const Duration(milliseconds: 300),
+          const Duration(
+        milliseconds: 300,
+      ),
 
       width: 100,
       height: 100,
@@ -633,12 +784,14 @@ class _MonitoringScreenState
       decoration: BoxDecoration(
         shape: BoxShape.circle,
 
-        color: color.withOpacity(
+        color:
+            color.withOpacity(
           0.12,
         ),
 
         border: Border.all(
-          color: color.withOpacity(
+          color:
+              color.withOpacity(
             0.25,
           ),
 
