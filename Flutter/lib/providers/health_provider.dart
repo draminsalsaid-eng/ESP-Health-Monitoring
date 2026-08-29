@@ -8,909 +8,562 @@ import 'package:http/http.dart' as http;
 import '../models/esp_status.dart';
 import '../models/user_input.dart';
 
-
-// ============================================================
-// HEALTH PROVIDER
-// ============================================================
-//
-// Flutter
-//    |
-//    | POST /start
-//    v
-// ESP32
-//    |
-//    | GET /health
-//    v
-// Flutter
-//
-// States:
-//
-// idle
-// connecting
-// waiting_finger
-// measuring
-// processing
-// completed
-// finger_removed
-// error
-// wifi_error
-//
-// ============================================================
-
 class HealthProvider extends ChangeNotifier {
+  // ============================================================
+  // ESP32 CONFIGURATION
+  // ============================================================
 
-  // ==========================================================
-  // ESP32 IP ADDRESS
-  // ==========================================================
-  //
   // IMPORTANT:
-  //
-  // Look at ESP32 Serial Monitor.
+  // Replace this IP with the IP address printed by ESP32 Serial Monitor.
   //
   // Example:
+  // ESP32 IP Address: 192.168.1.50
   //
-  // IP Address: 192.168.1.105
+  // Then:
+  // http://192.168.1.50
   //
-  // Then change this to:
-  //
-  // http://192.168.1.105
-  //
-  // ==========================================================
-
   static const String esp32BaseUrl =
       'http://192.168.1.12';
 
-
-  // ==========================================================
-  // HTTP TIMEOUTS
-  // ==========================================================
-
-  static const Duration startTimeout =
+  static const Duration requestTimeout =
       Duration(seconds: 5);
 
-  static const Duration healthTimeout =
-      Duration(seconds: 5);
+  static const Duration pollingInterval =
+      Duration(milliseconds: 500);
 
+  // ============================================================
+  // STATE
+  // ============================================================
 
-  // ==========================================================
-  // ESP STATE
-  // ==========================================================
-
-  ESPState _espState = ESPState(
-    status: 'idle',
-    message: 'Ready',
-    progress: null,
+  ESPState _espState = const ESPState(
+    status: ESPStatus.idle,
+    message: 'Connecting to ESP32...',
   );
-
 
   ESPState get espState => _espState;
 
-
-  // ==========================================================
-  // FINAL HEALTH DATA
-  // ==========================================================
+  // ============================================================
+  // HEALTH DATA
+  // ============================================================
 
   Map<String, dynamic>? _healthData;
-
 
   Map<String, dynamic>? get healthData =>
       _healthData;
 
+  // ============================================================
+  // CURRENT USER INPUT
+  // ============================================================
 
-  // ==========================================================
-  // CONNECTION
-  // ==========================================================
+  UserInput? _currentUserInput;
 
-  bool _connected = false;
+  UserInput? get currentUserInput =>
+      _currentUserInput;
 
+  // ============================================================
+  // LOADING
+  // ============================================================
 
-  bool get connected =>
-      _connected;
+  bool _isLoading = false;
 
+  bool get isLoading => _isLoading;
 
-  // ==========================================================
-  // MONITORING
-  // ==========================================================
+  // ============================================================
+  // ERROR
+  // ============================================================
 
-  bool _monitoring = false;
+  String? _error;
 
+  String? get error => _error;
 
-  bool get isMonitoring =>
-      _monitoring;
+  // ============================================================
+  // POLLING
+  // ============================================================
 
+  Timer? _pollTimer;
 
-  // ==========================================================
-  // POLLING TIMER
-  // ==========================================================
+  bool _polling = false;
 
-  Timer? _healthTimer;
+  // ============================================================
+  // PREVENT DUPLICATE START
+  // ============================================================
 
+  bool _startRequestInProgress = false;
 
-  // ==========================================================
+  // ============================================================
   // START MONITORING
-  // ==========================================================
-  //
-  // Called by WorkerSetupScreen.
-  //
-  // This function:
-  //
-  // 1. Sends worker information to ESP32.
-  // 2. Waits for {"status":"ok"}.
-  // 3. Starts health polling.
-  //
-  // ==========================================================
+  // ============================================================
 
   Future<bool> startMonitoring(
     UserInput userInput,
   ) async {
+    // ----------------------------------------------------------
+    // Prevent duplicate /start requests
+    // ----------------------------------------------------------
 
-    // --------------------------------------------------------
-    // Prevent duplicate monitoring sessions
-    // --------------------------------------------------------
-
-    if (_monitoring) {
-
-      debugPrint(
-        'Monitoring is already active.',
-      );
-
-      return true;
+    if (_startRequestInProgress) {
+      return false;
     }
 
+    _startRequestInProgress = true;
 
-    // --------------------------------------------------------
-    // Stop previous polling
-    // --------------------------------------------------------
-
-    _stopHealthPolling();
-
-
-    // --------------------------------------------------------
-    // Reset old result
-    // --------------------------------------------------------
+    _error = null;
 
     _healthData = null;
 
-    _connected = false;
+    _currentUserInput = userInput;
 
-    _monitoring = false;
-
+    _isLoading = true;
 
     _setESPState(
-      status: 'connecting',
-      message: 'Connecting to ESP32...',
-      progress: null,
+      const ESPState(
+        status: ESPStatus.idle,
+        message: 'Connecting to ESP32...',
+      ),
     );
 
+    // ----------------------------------------------------------
+    // Stop any previous polling
+    // ----------------------------------------------------------
+
+    _stopPolling();
 
     try {
+      // ========================================================
+      // FIRST:
+      // Check ESP32 /health
+      // ========================================================
 
-      // ======================================================
-      // START URL
-      // ======================================================
+      final healthResponse =
+          await _getESPHealth();
 
-      final Uri uri = Uri.parse(
-        '$esp32BaseUrl/start',
-      );
-
-
-      // ======================================================
-      // JSON BODY
-      // ======================================================
-
-      final Map<String, dynamic> requestData = {
-
-        'worker_type':
-            userInput.workerType,
-
-        'activity':
-            userInput.activity,
-
-        'environment':
-            userInput.environment,
-      };
-
-
-      final String requestBody =
-          jsonEncode(
-        requestData,
-      );
-
-
-      // ======================================================
-      // DEBUG
-      // ======================================================
-
-      debugPrint(
-        '=========================================',
-      );
-
-      debugPrint(
-        'ESP32 START REQUEST',
-      );
-
-      debugPrint(
-        'URL: $uri',
-      );
-
-      debugPrint(
-        'BODY: $requestBody',
-      );
-
-      debugPrint(
-        '=========================================',
-      );
-
-
-      // ======================================================
-      // POST /start
-      // ======================================================
-
-      final http.Response response =
-          await http
-              .post(
-                uri,
-
-                headers: {
-                  'Content-Type':
-                      'application/json',
-
-                  'Accept':
-                      'application/json',
-                },
-
-                body: requestBody,
-              )
-              .timeout(
-                startTimeout,
-              );
-
-
-      // ======================================================
-      // DEBUG RESPONSE
-      // ======================================================
-
-      debugPrint(
-        'ESP32 START RESPONSE',
-      );
-
-      debugPrint(
-        'HTTP STATUS: ${response.statusCode}',
-      );
-
-      debugPrint(
-        'BODY: ${response.body}',
-      );
-
-
-      // ======================================================
-      // CHECK HTTP STATUS
-      // ======================================================
-
-      if (response.statusCode != 200) {
-
-        _setESPState(
-          status: 'error',
-          message:
-              'ESP32 returned HTTP ${response.statusCode}',
-          progress: null,
+      if (healthResponse == null) {
+        _setError(
+          'Cannot connect to ESP32',
         );
 
         return false;
       }
 
+      // ========================================================
+      // SECOND:
+      // Send worker information to ESP32 /start
+      // ========================================================
 
-      // ======================================================
-      // PARSE RESPONSE
-      // ======================================================
+      final success =
+          await _sendStartRequest(
+        userInput,
+      );
 
-      Map<String, dynamic> responseData;
-
-
-      try {
-
-        responseData =
-            jsonDecode(
-              response.body,
-            ) as Map<String, dynamic>;
-
-      } catch (e) {
-
-        debugPrint(
-          'START JSON ERROR: $e',
-        );
-
-
-        _setESPState(
-          status: 'error',
-          message:
-              'Invalid JSON response from ESP32',
-          progress: null,
-        );
-
-
+      if (!success) {
         return false;
       }
 
-
-      // ======================================================
-      // READ STATUS
-      // ======================================================
-
-      final String status =
-          responseData['status']
-              ?.toString()
-              .trim()
-              .toLowerCase() ??
-          '';
-
-
-      // ======================================================
-      // ESP32 SHOULD RETURN:
+      // ========================================================
+      // ESP32 accepted the worker profile.
+      //
+      // ESP32 should now return:
       //
       // {
-      //   "status":"ok"
+      //   "status":"waiting_finger",
+      //   "message":"Place finger on both sensors"
       // }
-      //
-      // ======================================================
+      // ========================================================
 
-      if (status != 'ok') {
+      final latestState =
+          await _getESPHealth();
 
-        final String message =
-            responseData['message']
-                ?.toString() ??
-            'ESP32 rejected the request';
-
-
+      if (latestState != null) {
         _setESPState(
-          status: 'error',
-          message: message,
-          progress: null,
+          latestState,
         );
-
-
-        return false;
       }
 
+      // ========================================================
+      // START CONTINUOUS STATUS POLLING
+      // ========================================================
 
-      // ======================================================
-      // ESP32 CONNECTION SUCCESS
-      // ======================================================
-
-      _connected = true;
-
-      _monitoring = true;
-
-
-      // ======================================================
-      // IMPORTANT
-      //
-      // ESP32 handleStart() immediately changes its state to:
-      //
-      // waiting_finger
-      //
-      // Therefore Flutter displays:
-      //
-      // Place Your Finger
-      //
-      // ======================================================
-
-      _setESPState(
-        status: 'waiting_finger',
-        message:
-            'Place finger on both sensors',
-        progress: null,
-      );
-
-
-      // ======================================================
-      // START POLLING /health
-      // ======================================================
-
-      _startHealthPolling();
-
+      _startPolling();
 
       return true;
-
-
-    } on TimeoutException {
-
-      debugPrint(
-        'ESP32 /start timeout',
-      );
-
-
-      _setESPState(
-        status: 'error',
-        message:
-            'Connection to ESP32 timed out',
-        progress: null,
-      );
-
-
-      return false;
-
-
     } catch (e) {
-
-      debugPrint(
-        'ESP32 /start ERROR: $e',
+      _setError(
+        'ESP32 connection error: $e',
       );
-
-
-      _setESPState(
-        status: 'error',
-        message:
-            'Could not connect to ESP32',
-        progress: null,
-      );
-
 
       return false;
+    } finally {
+      _isLoading = false;
+
+      _startRequestInProgress = false;
+
+      notifyListeners();
     }
   }
 
+  // ============================================================
+  // GET ESP32 HEALTH
+  // ============================================================
 
-  // ==========================================================
-  // GET HEALTH STATUS
-  // ==========================================================
-  //
-  // GET:
-  //
-  // /health
-  //
-  // Examples:
-  //
-  // {
-  //   "status":"waiting_finger",
-  //   "message":"Place finger on both sensors"
-  // }
-  //
-  // {
-  //   "status":"measuring",
-  //   "progress":45,
-  //   "message":"Reading sensors"
-  // }
-  //
-  // {
-  //   "status":"processing",
-  //   "message":"AI is analyzing health data"
-  // }
-  //
-  // Final:
-  //
-  // {
-  //   "HR":75,
-  //   "HRV":40,
-  //   "SpO2":98,
-  //   "body_temp":36.8,
-  //   "env_temp":25.0,
-  //   "humidity":50,
-  //   "MQ2":100,
-  //   "MQ5":120,
-  //   "MQ135":140,
-  //   "acc_mag":9.8,
-  //   "gyro_mag":0.5,
-  //   "alert_level":"green",
-  //   "risk_level":"low",
-  //   "status":"completed",
-  //   "message":"Measurement completed"
-  // }
-  //
-  // ==========================================================
-
-  Future<void> checkHealth() async {
-
+  Future<ESPState?> _getESPHealth() async {
     try {
-
-      final Uri uri = Uri.parse(
+      final uri = Uri.parse(
         '$esp32BaseUrl/health',
       );
 
+      final response =
+          await http.get(
+        uri,
+      ).timeout(
+        requestTimeout,
+      );
 
-      final http.Response response =
-          await http
-              .get(
-                uri,
+      if (response.statusCode != 200) {
+        _setError(
+          'ESP32 /health returned HTTP ${response.statusCode}',
+        );
 
-                headers: {
-                  'Accept':
-                      'application/json',
-                },
-              )
-              .timeout(
-                healthTimeout,
-              );
+        return null;
+      }
 
+      final dynamic decoded =
+          jsonDecode(
+        response.body,
+      );
+
+      if (decoded is! Map<String, dynamic>) {
+        _setError(
+          'Invalid response from ESP32',
+        );
+
+        return null;
+      }
+
+      return ESPState.fromJson(
+        decoded,
+      );
+    } catch (e) {
+      _setError(
+        'Failed to read ESP32 status',
+      );
+
+      return null;
+    }
+  }
+
+  // ============================================================
+  // SEND START REQUEST
+  // ============================================================
+
+  Future<bool> _sendStartRequest(
+    UserInput userInput,
+  ) async {
+    try {
+      final uri = Uri.parse(
+        '$esp32BaseUrl/start',
+      );
+
+      final body =
+          jsonEncode(
+        userInput.toJson(),
+      );
 
       debugPrint(
-        'ESP32 /health HTTP: '
+        'Sending START to ESP32:',
+      );
+
+      debugPrint(
+        body,
+      );
+
+      final response =
+          await http.post(
+        uri,
+
+        headers: {
+          'Content-Type':
+              'application/json',
+        },
+
+        body: body,
+      ).timeout(
+        requestTimeout,
+      );
+
+      debugPrint(
+        'ESP32 /start HTTP status: '
         '${response.statusCode}',
       );
 
       debugPrint(
-        'ESP32 /health BODY: '
+        'ESP32 /start response: '
         '${response.body}',
       );
 
-
-      // ======================================================
-      // HTTP ERROR
-      // ======================================================
-
       if (response.statusCode != 200) {
-
-        debugPrint(
-          'ESP32 /health returned '
-          '${response.statusCode}',
+        _setError(
+          'ESP32 refused start request '
+          '(HTTP ${response.statusCode})',
         );
 
-        return;
+        return false;
       }
 
-
-      // ======================================================
-      // PARSE JSON
-      // ======================================================
-
-      Map<String, dynamic> data;
-
+      // --------------------------------------------------------
+      // Parse ESP32 response
+      // --------------------------------------------------------
 
       try {
-
-        data =
+        final dynamic decoded =
             jsonDecode(
-              response.body,
-            ) as Map<String, dynamic>;
-
-      } catch (e) {
-
-        debugPrint(
-          'HEALTH JSON ERROR: $e',
+          response.body,
         );
 
-        return;
-      }
+        if (decoded is Map<String, dynamic>) {
+          final status =
+              decoded['status']
+                  ?.toString()
+                  .toLowerCase();
 
+          if (status == 'error') {
+            final message =
+                decoded['message']
+                    ?.toString() ??
+                'ESP32 returned an error';
 
-      // ======================================================
-      // STATUS
-      // ======================================================
-
-      final String status =
-          data['status']
-              ?.toString()
-              .trim()
-              .toLowerCase() ??
-          '';
-
-
-      // ======================================================
-      // MESSAGE
-      // ======================================================
-
-      final String message =
-          data['message']
-              ?.toString() ??
-          '';
-
-
-      // ======================================================
-      // PROGRESS
-      // ======================================================
-
-      final int? progress =
-          _parseProgress(
-            data['progress'],
-          );
-
-
-      // ======================================================
-      // SAVE STATE
-      // ======================================================
-
-      _espState = ESPState(
-        status: status,
-        message: message,
-        progress: progress,
-      );
-
-
-      notifyListeners();
-
-
-      // ======================================================
-      // COMPLETED
-      // ======================================================
-
-      if (status == 'completed') {
-
-        // ----------------------------------------------------
-        // Save complete final JSON.
-        //
-        // We intentionally save the WHOLE JSON,
-        // not only physiological values.
-        //
-        // ----------------------------------------------------
-
-        _healthData =
-            Map<String, dynamic>.from(
-              data,
+            _setError(
+              message,
             );
 
-
-        _monitoring = false;
-
-
-        _stopHealthPolling();
-
-
-        notifyListeners();
-
-
-        debugPrint(
-          '=========================================',
-        );
-
-        debugPrint(
-          'MEASUREMENT COMPLETED',
-        );
-
-        debugPrint(
-          'FINAL HEALTH DATA:',
-        );
-
-        debugPrint(
-          jsonEncode(
-            _healthData,
-          ),
-        );
-
-        debugPrint(
-          '=========================================',
-        );
-
-
-        return;
+            return false;
+          }
+        }
+      } catch (_) {
+        // The /start response is expected to be JSON.
+        // If parsing fails, we still continue because
+        // HTTP 200 means the request was accepted.
       }
 
-
-      // ======================================================
-      // ERROR
-      // ======================================================
-
-      if (
-        status == 'error' ||
-        status == 'wifi_error'
-      ) {
-
-        _monitoring = false;
-
-        _stopHealthPolling();
-
-        notifyListeners();
-
-        return;
-      }
-
-
-      // ======================================================
-      // FINGER REMOVED
-      // ======================================================
-      //
-      // This is not a connection failure.
-      //
-      // ESP32 can return to waiting_finger.
-      //
-      // ======================================================
-
-      if (status == 'finger_removed') {
-
-        debugPrint(
-          'Finger removed before completion.',
-        );
-
-        return;
-      }
-
-
-    } on TimeoutException {
-
-      // ------------------------------------------------------
-      // Do not immediately kill the session.
-      //
-      // A temporary /health timeout should not destroy
-      // the monitoring session.
-      // ------------------------------------------------------
-
-      debugPrint(
-        'ESP32 /health timeout',
-      );
-
-
+      return true;
     } catch (e) {
-
-      debugPrint(
-        'ESP32 /health ERROR: $e',
+      _setError(
+        'Failed to send data to ESP32',
       );
+
+      return false;
     }
   }
 
+  // ============================================================
+  // START POLLING
+  // ============================================================
 
-  // ==========================================================
-  // START HEALTH POLLING
-  // ==========================================================
+  void _startPolling() {
+    _stopPolling();
 
-  void _startHealthPolling() {
+    _polling = true;
 
-    _stopHealthPolling();
-
-
-    // --------------------------------------------------------
-    // Request immediately
-    // --------------------------------------------------------
-
-    checkHealth();
-
-
-    // --------------------------------------------------------
-    // Then every 500 milliseconds
-    // --------------------------------------------------------
-
-    _healthTimer =
+    _pollTimer =
         Timer.periodic(
-      const Duration(
-        milliseconds: 500,
-      ),
-      (_) {
-
-        if (!_monitoring) {
+      pollingInterval,
+      (_) async {
+        if (!_polling) {
           return;
         }
 
-
-        checkHealth();
+        await _pollESPHealth();
       },
     );
   }
 
+  // ============================================================
+  // POLL ESP32 STATUS
+  // ============================================================
 
-  // ==========================================================
-  // STOP HEALTH POLLING
-  // ==========================================================
+  Future<void> _pollESPHealth() async {
+    final state =
+        await _getESPHealth();
 
-  void _stopHealthPolling() {
-
-    _healthTimer?.cancel();
-
-    _healthTimer = null;
-  }
-
-
-  // ==========================================================
-  // PARSE PROGRESS
-  // ==========================================================
-
-  int? _parseProgress(
-    dynamic value,
-  ) {
-
-    if (value == null) {
-      return null;
+    if (state == null) {
+      return;
     }
 
-
-    if (value is int) {
-
-      return value.clamp(
-        0,
-        100,
-      );
-    }
-
-
-    if (value is double) {
-
-      return value
-          .round()
-          .clamp(
-            0,
-            100,
-          );
-    }
-
-
-    if (value is num) {
-
-      return value
-          .round()
-          .clamp(
-            0,
-            100,
-          );
-    }
-
-
-    if (value is String) {
-
-      final int? parsed =
-          int.tryParse(
-            value,
-          );
-
-
-      if (parsed != null) {
-
-        return parsed.clamp(
-          0,
-          100,
-        );
-      }
-    }
-
-
-    return null;
-  }
-
-
-  // ==========================================================
-  // SET ESP STATE
-  // ==========================================================
-
-  void _setESPState({
-    required String status,
-    required String message,
-    required int? progress,
-  }) {
-
-    _espState = ESPState(
-      status: status,
-      message: message,
-      progress: progress,
+    _setESPState(
+      state,
     );
 
+    // ==========================================================
+    // COMPLETED
+    // ==========================================================
+
+    if (state.isCompleted) {
+      _stopPolling();
+
+      _isLoading = false;
+
+      notifyListeners();
+
+      return;
+    }
+
+    // ==========================================================
+    // ERROR
+    // ==========================================================
+
+    if (state.isError) {
+      _stopPolling();
+
+      _isLoading = false;
+
+      notifyListeners();
+
+      return;
+    }
+  }
+
+  // ============================================================
+  // SET ESP STATE
+  // ============================================================
+
+  void _setESPState(
+    ESPState state,
+  ) {
+    _espState = state;
+
+    // ----------------------------------------------------------
+    // Keep the complete JSON when measurement is completed.
+    //
+    // ESP32 /health contains the sensor data + AI result.
+    // ESPState only represents the UI state.
+    // ----------------------------------------------------------
+
+    if (state.isCompleted) {
+      _readCompletedHealthData();
+    }
 
     notifyListeners();
   }
 
+  // ============================================================
+  // READ COMPLETED DATA
+  // ============================================================
 
-  // ==========================================================
+  Future<void> _readCompletedHealthData() async {
+    try {
+      final uri = Uri.parse(
+        '$esp32BaseUrl/health',
+      );
+
+      final response =
+          await http.get(
+        uri,
+      ).timeout(
+        requestTimeout,
+      );
+
+      if (response.statusCode != 200) {
+        return;
+      }
+
+      final dynamic decoded =
+          jsonDecode(
+        response.body,
+      );
+
+      if (decoded is Map<String, dynamic>) {
+        _healthData =
+            Map<String, dynamic>.from(
+          decoded,
+        );
+
+        notifyListeners();
+      }
+    } catch (_) {
+      // Keep the ESPState completed state.
+      // The dashboard can handle missing healthData.
+    }
+  }
+
+  // ============================================================
+  // PUBLIC REFRESH
+  // ============================================================
+
+  Future<void> refreshESPStatus() async {
+    final state =
+        await _getESPHealth();
+
+    if (state == null) {
+      return;
+    }
+
+    _setESPState(
+      state,
+    );
+  }
+
+  // ============================================================
   // RESET
-  // ==========================================================
+  // ============================================================
 
   void reset() {
-
-    _stopHealthPolling();
-
+    _stopPolling();
 
     _healthData = null;
 
+    _currentUserInput = null;
 
-    _connected = false;
+    _error = null;
 
+    _isLoading = false;
 
-    _monitoring = false;
+    _startRequestInProgress = false;
 
-
-    _espState = ESPState(
-      status: 'idle',
+    _espState =
+        const ESPState(
+      status: ESPStatus.idle,
       message: 'Ready',
-      progress: null,
     );
-
 
     notifyListeners();
   }
 
+  // ============================================================
+  // STOP POLLING
+  // ============================================================
 
-  // ==========================================================
+  void _stopPolling() {
+    _polling = false;
+
+    _pollTimer?.cancel();
+
+    _pollTimer = null;
+  }
+
+  // ============================================================
+  // SET ERROR
+  // ============================================================
+
+  void _setError(
+    String message,
+  ) {
+    _error = message;
+
+    _espState =
+        ESPState(
+      status: ESPStatus.error,
+      message: message,
+    );
+
+    notifyListeners();
+  }
+
+  // ============================================================
   // DISPOSE
-  // ==========================================================
+  // ============================================================
 
   @override
   void dispose() {
-
-    _stopHealthPolling();
+    _stopPolling();
 
     super.dispose();
   }
