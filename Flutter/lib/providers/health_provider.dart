@@ -1,4 +1,4 @@
-```dart
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -568,4 +568,3 @@ class HealthProvider extends ChangeNotifier {
     super.dispose();
   }
 }
-```
