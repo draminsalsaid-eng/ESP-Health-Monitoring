@@ -97,7 +97,7 @@ class _WorkerSetupScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            health.state.message,
+            health.espstate.message,
           ),
           backgroundColor: Colors.red,
         ),
