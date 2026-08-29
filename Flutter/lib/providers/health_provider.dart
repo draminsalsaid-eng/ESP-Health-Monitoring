@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:convert';
 
@@ -7,13 +6,14 @@ import 'package:http/http.dart' as http;
 
 import '../models/esp_status.dart';
 import '../models/user_input.dart';
+import '../models/health_response.dart';
 
 class HealthProvider extends ChangeNotifier {
   // ============================================================
   // ESP32 CONFIGURATION
   // ============================================================
 
-  // ضع هنا IP الخاص بالـ ESP32
+  // Replace this IP with the actual ESP32 IP address.
   static const String esp32BaseUrl =
       'http://192.168.1.12';
 
@@ -38,9 +38,9 @@ class HealthProvider extends ChangeNotifier {
   // HEALTH DATA
   // ============================================================
 
-  Map<String, dynamic>? _healthData;
+  HealthResponse? _healthData;
 
-  Map<String, dynamic>? get healthData =>
+  HealthResponse? get healthData =>
       _healthData;
 
   // ============================================================
@@ -77,7 +77,7 @@ class HealthProvider extends ChangeNotifier {
   bool _polling = false;
 
   // ============================================================
-  // START REQUEST LOCK
+  // PREVENT DUPLICATE START
   // ============================================================
 
   bool _startRequestInProgress = false;
@@ -90,23 +90,11 @@ class HealthProvider extends ChangeNotifier {
     UserInput userInput,
   ) async {
     // ----------------------------------------------------------
-    // Prevent duplicate START requests
+    // Prevent duplicate /start requests
     // ----------------------------------------------------------
 
     if (_startRequestInProgress) {
       return false;
-    }
-
-    // ----------------------------------------------------------
-    // If we are already monitoring the same session,
-    // don't start another session.
-    // ----------------------------------------------------------
-
-    if (_polling &&
-        _currentUserInput != null &&
-        _espState.status != ESPStatus.completed &&
-        _espState.status != ESPStatus.error) {
-      return true;
     }
 
     _startRequestInProgress = true;
@@ -114,9 +102,8 @@ class HealthProvider extends ChangeNotifier {
     _error = null;
     _healthData = null;
     _currentUserInput = userInput;
-    _isLoading = true;
 
-    _stopPolling();
+    _isLoading = true;
 
     _setESPState(
       const ESPState(
@@ -125,37 +112,37 @@ class HealthProvider extends ChangeNotifier {
       ),
     );
 
+    // ----------------------------------------------------------
+    // Stop previous polling
+    // ----------------------------------------------------------
+
+    _stopPolling();
+
     try {
       // ========================================================
-      // STEP 1
-      // Check ESP32
+      // 1. CHECK ESP32
       // ========================================================
 
-      final ESPState? healthState =
+      final healthState =
           await _getESPHealth();
 
       if (healthState == null) {
         _setError(
-          _error ?? 'Cannot connect to ESP32',
+          'Cannot connect to ESP32',
         );
 
         return false;
       }
-
-      // --------------------------------------------------------
-      // Show current ESP32 state
-      // --------------------------------------------------------
 
       _setESPState(
         healthState,
       );
 
       // ========================================================
-      // STEP 2
-      // Send worker profile to ESP32
+      // 2. SEND WORKER DATA
       // ========================================================
 
-      final bool success =
+      final success =
           await _sendStartRequest(
         userInput,
       );
@@ -165,11 +152,10 @@ class HealthProvider extends ChangeNotifier {
       }
 
       // ========================================================
-      // STEP 3
-      // Read the new ESP32 state
+      // 3. READ CURRENT ESP32 STATUS
       // ========================================================
 
-      final ESPState? latestState =
+      final latestState =
           await _getESPHealth();
 
       if (latestState != null) {
@@ -179,8 +165,7 @@ class HealthProvider extends ChangeNotifier {
       }
 
       // ========================================================
-      // STEP 4
-      // Start polling
+      // 4. START POLLING
       // ========================================================
 
       _startPolling();
@@ -207,11 +192,11 @@ class HealthProvider extends ChangeNotifier {
 
   Future<ESPState?> _getESPHealth() async {
     try {
-      final Uri uri = Uri.parse(
+      final uri = Uri.parse(
         '$esp32BaseUrl/health',
       );
 
-      final http.Response response =
+      final response =
           await http.get(
         uri,
       ).timeout(
@@ -250,33 +235,9 @@ class HealthProvider extends ChangeNotifier {
         return null;
       }
 
-      // --------------------------------------------------------
-      // Save complete JSON
-      //
-      // This is important because /health can contain
-      // sensor values and AI results.
-      // --------------------------------------------------------
-
-      _healthData =
-          Map<String, dynamic>.from(
-        decoded,
-      );
-
       return ESPState.fromJson(
         decoded,
       );
-    } on TimeoutException {
-      _setError(
-        'ESP32 request timed out',
-      );
-
-      return null;
-    } on FormatException {
-      _setError(
-        'Invalid JSON received from ESP32',
-      );
-
-      return null;
     } catch (e) {
       debugPrint(
         'ESP32 /health error: $e',
@@ -291,54 +252,36 @@ class HealthProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // SEND /start
+  // SEND START REQUEST
   // ============================================================
 
   Future<bool> _sendStartRequest(
     UserInput userInput,
   ) async {
     try {
-      final Uri uri = Uri.parse(
+      final uri = Uri.parse(
         '$esp32BaseUrl/start',
       );
 
-      final Map<String, dynamic> json =
-          userInput.toJson();
-
-      final String body =
+      final body =
           jsonEncode(
-        json,
+        userInput.toJson(),
       );
 
       debugPrint(
-        '================================',
+        'Sending START to ESP32:',
       );
 
       debugPrint(
-        'Sending START to ESP32',
+        body,
       );
 
-      debugPrint(
-        'URL: $uri',
-      );
-
-      debugPrint(
-        'BODY: $body',
-      );
-
-      debugPrint(
-        '================================',
-      );
-
-      final http.Response response =
+      final response =
           await http.post(
         uri,
 
         headers: {
           'Content-Type':
-              'application/json',
-
-          'Accept':
               'application/json',
         },
 
@@ -357,12 +300,7 @@ class HealthProvider extends ChangeNotifier {
         '${response.body}',
       );
 
-      // ========================================================
-      // HTTP ERROR
-      // ========================================================
-
-      if (response.statusCode < 200 ||
-          response.statusCode >= 300) {
+      if (response.statusCode != 200) {
         _setError(
           'ESP32 refused start request '
           '(HTTP ${response.statusCode})',
@@ -371,86 +309,56 @@ class HealthProvider extends ChangeNotifier {
         return false;
       }
 
-      // ========================================================
-      // PARSE RESPONSE
-      // ========================================================
+      // --------------------------------------------------------
+      // Parse /start response
+      // --------------------------------------------------------
 
-      if (response.body.trim().isNotEmpty) {
-        try {
-          final dynamic decoded =
-              jsonDecode(
-            response.body,
-          );
+      try {
+        final dynamic decoded =
+            jsonDecode(
+          response.body,
+        );
 
-          if (decoded is Map<String, dynamic>) {
-            // --------------------------------------------------
-            // Save complete response
-            // --------------------------------------------------
+        if (decoded is Map<String, dynamic>) {
+          final status =
+              decoded['status']
+                  ?.toString()
+                  .trim()
+                  .toLowerCase();
 
-            _healthData =
-                Map<String, dynamic>.from(
-              decoded,
+          if (status == 'error') {
+            final message =
+                decoded['message']
+                    ?.toString() ??
+                'ESP32 returned an error';
+
+            _setError(
+              message,
             );
 
-            // --------------------------------------------------
-            // If ESP32 explicitly returned a state,
-            // update UI immediately.
-            // --------------------------------------------------
-
-            if (decoded.containsKey('status')) {
-              final ESPState state =
-                  ESPState.fromJson(
-                decoded,
-              );
-
-              _setESPState(
-                state,
-              );
-            }
-
-            // --------------------------------------------------
-            // Explicit ESP32 error
-            // --------------------------------------------------
-
-            final String? status =
-                decoded['status']
-                    ?.toString()
-                    .trim()
-                    .toLowerCase();
-
-            if (status == 'error' ||
-                status == 'wifi_error') {
-              final String message =
-                  decoded['message']
-                          ?.toString() ??
-                      'ESP32 returned an error';
-
-              _setError(
-                message,
-              );
-
-              return false;
-            }
+            return false;
           }
-        } on FormatException {
-          // ----------------------------------------------------
-          // If HTTP is successful but response is not JSON,
-          // continue because /start itself succeeded.
-          // ----------------------------------------------------
 
-          debugPrint(
-            'ESP32 /start response is not JSON',
+          // If ESP32 already returns a state,
+          // update the UI immediately.
+          final espState =
+              ESPState.fromJson(
+            decoded,
+          );
+
+          _setESPState(
+            espState,
           );
         }
+      } catch (e) {
+        debugPrint(
+          'Could not parse /start response: $e',
+        );
+
+        // HTTP 200 is considered accepted.
       }
 
       return true;
-    } on TimeoutException {
-      _setError(
-        'ESP32 /start request timed out',
-      );
-
-      return false;
     } catch (e) {
       debugPrint(
         'ESP32 /start error: $e',
@@ -465,7 +373,7 @@ class HealthProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // START STATUS POLLING
+  // START POLLING
   // ============================================================
 
   void _startPolling() {
@@ -473,25 +381,15 @@ class HealthProvider extends ChangeNotifier {
 
     _polling = true;
 
-    // ----------------------------------------------------------
-    // Read immediately
-    // ----------------------------------------------------------
-
-    _pollESPHealth();
-
-    // ----------------------------------------------------------
-    // Then continue every 500 ms
-    // ----------------------------------------------------------
-
     _pollTimer =
         Timer.periodic(
       pollingInterval,
-      (_) {
+      (_) async {
         if (!_polling) {
           return;
         }
 
-        _pollESPHealth();
+        await _pollESPHealth();
       },
     );
   }
@@ -501,20 +399,12 @@ class HealthProvider extends ChangeNotifier {
   // ============================================================
 
   Future<void> _pollESPHealth() async {
-    if (!_polling) {
-      return;
-    }
-
-    final ESPState? state =
+    final state =
         await _getESPHealth();
 
     if (state == null) {
       return;
     }
-
-    // ----------------------------------------------------------
-    // Update UI
-    // ----------------------------------------------------------
 
     _setESPState(
       state,
@@ -529,11 +419,7 @@ class HealthProvider extends ChangeNotifier {
 
       _isLoading = false;
 
-      // --------------------------------------------------------
-      // Make one final request to obtain the complete
-      // measurement + AI result.
-      // --------------------------------------------------------
-
+      // Get complete health data.
       await getLatestHealthData();
 
       notifyListeners();
@@ -557,18 +443,30 @@ class HealthProvider extends ChangeNotifier {
   }
 
   // ============================================================
+  // SET ESP STATE
+  // ============================================================
+
+  void _setESPState(
+    ESPState state,
+  ) {
+    _espState = state;
+
+    notifyListeners();
+  }
+
+  // ============================================================
   // GET LATEST HEALTH DATA
-  //
-  // Used by DashboardScreen
   // ============================================================
 
   Future<void> getLatestHealthData() async {
     try {
-      final Uri uri = Uri.parse(
+      _error = null;
+
+      final uri = Uri.parse(
         '$esp32BaseUrl/health',
       );
 
-      final http.Response response =
+      final response =
           await http.get(
         uri,
       ).timeout(
@@ -576,20 +474,21 @@ class HealthProvider extends ChangeNotifier {
       );
 
       debugPrint(
-        'Dashboard /health HTTP: '
+        'GET latest health HTTP: '
         '${response.statusCode}',
       );
 
       debugPrint(
-        'Dashboard /health response: '
+        'GET latest health response: '
         '${response.body}',
       );
 
       if (response.statusCode != 200) {
-        _setError(
-          'Failed to load latest health data '
-          '(HTTP ${response.statusCode})',
-        );
+        _error =
+            'Failed to get health data '
+            '(HTTP ${response.statusCode})';
+
+        notifyListeners();
 
         return;
       }
@@ -600,61 +499,42 @@ class HealthProvider extends ChangeNotifier {
       );
 
       if (decoded is! Map<String, dynamic>) {
-        _setError(
-          'Invalid health data received',
-        );
+        _error =
+            'Invalid health data received from ESP32';
+
+        notifyListeners();
 
         return;
       }
 
       // --------------------------------------------------------
-      // Save complete ESP32 JSON
+      // Convert JSON to HealthResponse
       // --------------------------------------------------------
 
       _healthData =
-          Map<String, dynamic>.from(
+          HealthResponse.fromJson(
         decoded,
       );
-
-      // --------------------------------------------------------
-      // Also update ESPState
-      // --------------------------------------------------------
-
-      final ESPState state =
-          ESPState.fromJson(
-        decoded,
-      );
-
-      _espState = state;
-
-      _error = null;
 
       notifyListeners();
-    } on TimeoutException {
-      _setError(
-        'Loading health data timed out',
-      );
-    } on FormatException {
-      _setError(
-        'Invalid JSON in health data',
-      );
     } catch (e) {
       debugPrint(
         'getLatestHealthData error: $e',
       );
 
-      _setError(
-        'Failed to load health data',
-      );
+      _error =
+          'Failed to retrieve health data';
+
+      notifyListeners();
     }
   }
 
   // ============================================================
-  // PUBLIC REFRESH ESP STATUS
+  // REFRESH ESP STATUS
   // ============================================================
 
   Future<void> refreshESPStatus() async {
-    final ESPState? state =
+    final state =
         await _getESPHealth();
 
     if (state == null) {
@@ -665,53 +545,10 @@ class HealthProvider extends ChangeNotifier {
       state,
     );
 
+    // If completed, also retrieve full data.
     if (state.isCompleted) {
-      _stopPolling();
-
       await getLatestHealthData();
     }
-  }
-
-  // ============================================================
-  // SET ESP STATE
-  // ============================================================
-
-  void _setESPState(
-    ESPState state,
-  ) {
-    _espState = state;
-
-    // ----------------------------------------------------------
-    // If completed, keep polling stopped.
-    // ----------------------------------------------------------
-
-    if (state.isCompleted) {
-      _stopPolling();
-    }
-
-    notifyListeners();
-  }
-
-  // ============================================================
-  // SET ERROR
-  // ============================================================
-
-  void _setError(
-    String message,
-  ) {
-    _error = message;
-
-    _espState =
-        ESPState(
-      status: ESPStatus.error,
-      message: message,
-    );
-
-    _stopPolling();
-
-    _isLoading = false;
-
-    notifyListeners();
   }
 
   // ============================================================
@@ -753,6 +590,24 @@ class HealthProvider extends ChangeNotifier {
   }
 
   // ============================================================
+  // SET ERROR
+  // ============================================================
+
+  void _setError(
+    String message,
+  ) {
+    _error = message;
+
+    _espState =
+        ESPState(
+      status: ESPStatus.error,
+      message: message,
+    );
+
+    notifyListeners();
+  }
+
+  // ============================================================
   // DISPOSE
   // ============================================================
 
@@ -763,4 +618,3 @@ class HealthProvider extends ChangeNotifier {
     super.dispose();
   }
 }
-
