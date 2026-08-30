@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
- 
+
 import '../providers/health_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -13,8 +13,7 @@ class DashboardScreen extends StatefulWidget {
       _DashboardScreenState();
 }
 
-class _DashboardScreenState
-    extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
@@ -88,8 +87,7 @@ class _DashboardScreenState
               const Center(
                 child: Padding(
                   padding: EdgeInsets.all(30),
-                  child:
-                      CircularProgressIndicator(),
+                  child: CircularProgressIndicator(),
                 ),
               ),
 
@@ -106,24 +104,22 @@ class _DashboardScreenState
 
               VitalCard(
                 title: 'Worker Type',
-                value: data.workerType,
+                value: _displayText(data.workerType),
                 icon: Icons.badge,
                 color: Colors.blue,
               ),
 
               VitalCard(
                 title: 'Activity',
-                value: data.activity,
-                icon:
-                    Icons.directions_run,
+                value: _displayText(data.activity),
+                icon: Icons.directions_run,
                 color: Colors.indigo,
               ),
 
               VitalCard(
                 title: 'Environment',
-                value: data.environment,
-                icon:
-                    Icons.location_on,
+                value: _displayText(data.environment),
+                icon: Icons.location_on,
                 color: Colors.teal,
               ),
 
@@ -148,8 +144,7 @@ class _DashboardScreenState
               ),
 
               VitalCard(
-                title:
-                    'Heart Rate Variability',
+                title: 'Heart Rate Variability',
                 value:
                     '${data.hrv} ms',
                 icon: Icons.timeline,
@@ -157,11 +152,10 @@ class _DashboardScreenState
               ),
 
               VitalCard(
-                title: 'SpO₂',
+                title: 'Blood Oxygen (SpO₂)',
                 value:
                     '${data.spo2} %',
-                icon:
-                    Icons.water_drop,
+                icon: Icons.water_drop,
                 color: Colors.blue,
               ),
 
@@ -170,7 +164,7 @@ class _DashboardScreenState
               // ==================================================
 
               _sectionTitle(
-                'Temperature',
+                'Temperature & Humidity',
                 Icons.thermostat,
                 Colors.orange,
               ),
@@ -180,14 +174,11 @@ class _DashboardScreenState
               // --------------------------------------------------
 
               VitalCard(
-                title:
-                    'Body Temperature',
+                title: 'Body Temperature',
                 value:
                     '${data.bodyTemperature.toStringAsFixed(2)} °C',
-                icon:
-                    Icons.thermostat,
-                color:
-                    Colors.deepOrange,
+                icon: Icons.thermostat,
+                color: Colors.deepOrange,
               ),
 
               // --------------------------------------------------
@@ -195,12 +186,10 @@ class _DashboardScreenState
               // --------------------------------------------------
 
               VitalCard(
-                title:
-                    'Environment Temperature',
+                title: 'Environment Temperature',
                 value:
                     '${data.environmentTemperature.toStringAsFixed(2)} °C',
-                icon:
-                    Icons.home_work,
+                icon: Icons.home_work,
                 color: Colors.orange,
               ),
 
@@ -212,47 +201,63 @@ class _DashboardScreenState
                 title: 'Humidity',
                 value:
                     '${data.humidity.toStringAsFixed(1)} %',
-                icon:
-                    Icons.water_drop,
+                icon: Icons.water_drop,
                 color: Colors.cyan,
               ),
 
               // ==================================================
-              // GAS SENSORS
+              // GAS / AIR QUALITY
               // ==================================================
 
               _sectionTitle(
-                'Gas Sensors',
+                'Air & Gas Monitoring',
                 Icons.air,
                 Colors.brown,
               ),
 
+              // --------------------------------------------------
+              // MQ-2
+              //
+              // The ESP32 currently sends the raw ADC value.
+              // We therefore do NOT display ppm.
+              // --------------------------------------------------
+
               VitalCard(
-                title: 'MQ-2',
+                title: 'Combustible Gas',
+                subtitle: 'MQ-2 sensor',
                 value:
                     '${data.mq2}',
-                icon: Icons.cloud,
+                icon: Icons.local_fire_department,
                 color: Colors.brown,
               ),
 
-              VitalCard(
-                title: 'MQ-5',
-                value:
-                    '${data.mq5}',
-                icon:
-                    Icons.gas_meter,
-                color:
-                    Colors.deepPurple,
-              ),
+              // --------------------------------------------------
+              // MQ-5
+              // --------------------------------------------------
 
               VitalCard(
-                title: 'MQ-135',
+                title: 'Natural Gas / LPG',
+                subtitle: 'MQ-5 sensor',
+                value:
+                    '${data.mq5}',
+                icon: Icons.gas_meter,
+                color: Colors.deepPurple,
+              ),
+
+              // --------------------------------------------------
+              // MQ-135
+              // --------------------------------------------------
+
+              VitalCard(
+                title: 'Air Quality',
+                subtitle: 'MQ-135 sensor',
                 value:
                     '${data.mq135}',
                 icon: Icons.air,
-                color:
-                    Colors.blueGrey,
+                color: Colors.blueGrey,
               ),
+
+              const SizedBox(height: 10),
 
               // ==================================================
               // MOTION
@@ -265,8 +270,7 @@ class _DashboardScreenState
               ),
 
               VitalCard(
-                title:
-                    'Acceleration Magnitude',
+                title: 'Acceleration',
                 value:
                     '${data.accMag.toStringAsFixed(2)} m/s²',
                 icon: Icons.speed,
@@ -274,18 +278,15 @@ class _DashboardScreenState
               ),
 
               VitalCard(
-                title:
-                    'Gyroscope Magnitude',
+                title: 'Rotational Motion',
                 value:
                     '${data.gyroMag.toStringAsFixed(2)} rad/s',
-                icon:
-                    Icons.screen_rotation,
-                color:
-                    Colors.lightGreen.shade700,
+                icon: Icons.screen_rotation,
+                color: Colors.lightGreen.shade700,
               ),
 
               // ==================================================
-              // AI RESULTS
+              // AI HEALTH ANALYSIS
               // ==================================================
 
               _sectionTitle(
@@ -294,53 +295,106 @@ class _DashboardScreenState
                 Colors.deepPurple,
               ),
 
+              // --------------------------------------------------
+              // SAFETY STATUS
+              //
+              // Comes from ESP32:
+              // alert_level = green / yellow / red
+              // --------------------------------------------------
+
               VitalCard(
-                title: 'AI Prediction',
+                title: 'Safety Status',
+                subtitle:
+                    'Overall health alert',
                 value:
-                    data.prediction.isEmpty
-                        ? 'Unknown'
-                        : data.prediction
-                            .toUpperCase(),
+                    _formatAlertLevel(
+                      data.alertLevel,
+                    ),
                 icon:
-                    Icons.psychology,
+                    _alertIcon(
+                      data.alertLevel,
+                    ),
                 color:
-                    _predictionColor(
-                  data.prediction,
+                    _alertColor(
+                      data.alertLevel,
+                    ),
+              ),
+
+              // --------------------------------------------------
+              // RISK LEVEL
+              //
+              // Comes from ESP32:
+              // risk_level = low / medium / high
+              // --------------------------------------------------
+
+              VitalCard(
+                title: 'Risk Level',
+                subtitle:
+                    'AI-assessed health risk',
+                value:
+                    _formatRiskLevel(
+                      data.riskLevel,
+                    ),
+                icon:
+                    Icons.warning_amber_rounded,
+                color:
+                    _riskColor(
+                      data.riskLevel,
+                    ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // ==================================================
+              // USER NOTE
+              // ==================================================
+
+              Container(
+                padding:
+                    const EdgeInsets.all(14),
+
+                decoration: BoxDecoration(
+                  borderRadius:
+                      BorderRadius.circular(12),
+
+                  color:
+                      Colors.grey.shade100,
+
+                  border: Border.all(
+                    color:
+                        Colors.grey.shade300,
+                  ),
                 ),
-              ),
 
-              VitalCard(
-                title: 'Risk Score',
-                value:
-                    data.riskScore
-                        .toStringAsFixed(3),
-                icon:
-                    Icons.warning_amber,
-                color:
-                    Colors.redAccent,
-              ),
+                child: Row(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
 
-              VitalCard(
-                title:
-                    'Environment Stress',
-                value:
-                    data.environmentStress
-                        .toStringAsFixed(3),
-                icon:
-                    Icons.thermostat_auto,
-                color: Colors.orange,
-              ),
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color:
+                          Colors.grey.shade700,
+                    ),
 
-              VitalCard(
-                title:
-                    'Activity Stress',
-                value:
-                    data.activityStress
-                        .toStringAsFixed(3),
-                icon:
-                    Icons.fitness_center,
-                color:
-                    Colors.deepPurple,
+                    const SizedBox(width: 10),
+
+                    Expanded(
+                      child: Text(
+                        'Gas sensor readings are shown as sensor '
+                        'values. They are not displayed as ppm because '
+                        'the current ESP32 system does not perform '
+                        'gas-specific calibration.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color:
+                              Colors.grey.shade700,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 20),
@@ -378,7 +432,11 @@ class _DashboardScreenState
         top: 15,
         bottom: 10,
       ),
+
       child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.center,
+
         children: [
           Icon(
             icon,
@@ -391,6 +449,10 @@ class _DashboardScreenState
           Expanded(
             child: Text(
               title,
+              maxLines: 2,
+              overflow:
+                  TextOverflow.ellipsis,
+
               style: TextStyle(
                 fontSize: 20,
                 fontWeight:
@@ -405,14 +467,51 @@ class _DashboardScreenState
   }
 
   // ============================================================
-  // PREDICTION COLOR
+  // SAFE TEXT
   // ============================================================
 
-  Color _predictionColor(
-    String prediction,
+  String _displayText(String value) {
+    if (value.trim().isEmpty) {
+      return 'Unknown';
+    }
+
+    return value.replaceAll('_', ' ');
+  }
+
+  // ============================================================
+  // ALERT LEVEL
+  // ============================================================
+
+  String _formatAlertLevel(
+    String value,
   ) {
-    switch (
-        prediction.toLowerCase()) {
+    if (value.trim().isEmpty) {
+      return 'Unknown';
+    }
+
+    switch (value.toLowerCase()) {
+      case 'green':
+        return 'SAFE';
+
+      case 'yellow':
+        return 'WARNING';
+
+      case 'red':
+        return 'DANGER';
+
+      default:
+        return value.toUpperCase();
+    }
+  }
+
+  // ============================================================
+  // ALERT COLOR
+  // ============================================================
+
+  Color _alertColor(
+    String value,
+  ) {
+    switch (value.toLowerCase()) {
       case 'green':
         return Colors.green;
 
@@ -426,14 +525,86 @@ class _DashboardScreenState
         return Colors.grey;
     }
   }
+
+  // ============================================================
+  // ALERT ICON
+  // ============================================================
+
+  IconData _alertIcon(
+    String value,
+  ) {
+    switch (value.toLowerCase()) {
+      case 'green':
+        return Icons.check_circle;
+
+      case 'yellow':
+        return Icons.warning_amber_rounded;
+
+      case 'red':
+        return Icons.dangerous;
+
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  // ============================================================
+  // RISK LEVEL
+  // ============================================================
+
+  String _formatRiskLevel(
+    String value,
+  ) {
+    if (value.trim().isEmpty) {
+      return 'Unknown';
+    }
+
+    switch (value.toLowerCase()) {
+      case 'low':
+        return 'LOW';
+
+      case 'medium':
+        return 'MEDIUM';
+
+      case 'high':
+        return 'HIGH';
+
+      default:
+        return value.toUpperCase();
+    }
+  }
+
+  // ============================================================
+  // RISK COLOR
+  // ============================================================
+
+  Color _riskColor(
+    String value,
+  ) {
+    switch (value.toLowerCase()) {
+      case 'low':
+        return Colors.green;
+
+      case 'medium':
+        return Colors.orange;
+
+      case 'high':
+        return Colors.red;
+
+      default:
+        return Colors.grey;
+    }
+  }
 }
 
-// ================================================================
+
+// =================================================================
 // VITAL CARD
-// ================================================================
+// =================================================================
 
 class VitalCard extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final String value;
   final IconData icon;
   final Color color;
@@ -441,6 +612,7 @@ class VitalCard extends StatelessWidget {
   const VitalCard({
     super.key,
     required this.title,
+    this.subtitle,
     required this.value,
     required this.icon,
     required this.color,
@@ -466,7 +638,14 @@ class VitalCard extends StatelessWidget {
         ),
 
         child: Row(
+          crossAxisAlignment:
+              CrossAxisAlignment.center,
+
           children: [
+            // ==================================================
+            // ICON
+            // ==================================================
+
             CircleAvatar(
               radius: 24,
 
@@ -482,25 +661,78 @@ class VitalCard extends StatelessWidget {
 
             const SizedBox(width: 15),
 
+            // ==================================================
+            // TITLE + SUBTITLE
+            // ==================================================
+
             Expanded(
-              child: Text(
-                title,
-                style:
-                    const TextStyle(
-                  fontSize: 16,
-                  fontWeight:
-                      FontWeight.bold,
-                ),
+              flex: 6,
+
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+
+                mainAxisAlignment:
+                    MainAxisAlignment.center,
+
+                children: [
+                  Text(
+                    title,
+
+                    maxLines: 2,
+
+                    overflow:
+                        TextOverflow.ellipsis,
+
+                    style:
+                        const TextStyle(
+                      fontSize: 16,
+                      fontWeight:
+                          FontWeight.bold,
+                    ),
+                  ),
+
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 3),
+
+                    Text(
+                      subtitle!,
+
+                      maxLines: 1,
+
+                      overflow:
+                          TextOverflow.ellipsis,
+
+                      style: TextStyle(
+                        fontSize: 12,
+                        color:
+                            Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
 
             const SizedBox(width: 10),
 
+            // ==================================================
+            // VALUE
+            // ==================================================
+
             Flexible(
+              flex: 4,
+
               child: Text(
                 value,
+
                 textAlign:
                     TextAlign.right,
+
+                maxLines: 2,
+
+                overflow:
+                    TextOverflow.ellipsis,
 
                 style: TextStyle(
                   fontSize: 16,
