@@ -1,6 +1,6 @@
 class HealthResponse {
   // ============================================================
-  // WORKER PROFILE
+  // WORKER / PROFILE
   // ============================================================
 
   final String workerType;
@@ -25,7 +25,10 @@ class HealthResponse {
   final double humidity;
 
   // ============================================================
-  // GAS SENSOR RAW VALUES
+  // GAS / AIR QUALITY SENSORS
+  //
+  // These are raw ADC sensor values.
+  // They are NOT ppm.
   // ============================================================
 
   final int mq2;
@@ -33,37 +36,35 @@ class HealthResponse {
   final int mq135;
 
   // ============================================================
-  // MOTION DATA
+  // MOTION
   // ============================================================
 
   final double accMag;
   final double gyroMag;
 
   // ============================================================
-  // AI ANALYSIS
+  // AI HEALTH ANALYSIS
   // ============================================================
 
-  final String alertLevel;
-  final String riskLevel;
+  final String prediction;
 
   final double riskScore;
 
-  final double cardiacStress;
-  final double oxygenRisk;
-  final double fatigueIndex;
+  final String riskLevel;
+
+  final String alertLevel;
+
   final double heatStress;
-  final double bodyTemperatureEffect;
-  final double environmentalStress;
+
+  final double environmentStress;
+
   final double activityStress;
-  final double motionIndex;
-  final double motionStress;
+
+  final double fatigueIndex;
 
   // ============================================================
-  // STATUS
+  // CONSTRUCTOR
   // ============================================================
-
-  final String status;
-  final String message;
 
   const HealthResponse({
     required this.workerType,
@@ -73,6 +74,7 @@ class HealthResponse {
     required this.heartRate,
     required this.hrv,
     required this.spo2,
+
     required this.bodyTemperature,
 
     required this.environmentTemperature,
@@ -85,22 +87,14 @@ class HealthResponse {
     required this.accMag,
     required this.gyroMag,
 
-    required this.alertLevel,
-    required this.riskLevel,
+    required this.prediction,
     required this.riskScore,
-
-    required this.cardiacStress,
-    required this.oxygenRisk,
-    required this.fatigueIndex,
+    required this.riskLevel,
+    required this.alertLevel,
     required this.heatStress,
-    required this.bodyTemperatureEffect,
-    required this.environmentalStress,
+    required this.environmentStress,
     required this.activityStress,
-    required this.motionIndex,
-    required this.motionStress,
-
-    required this.status,
-    required this.message,
+    required this.fatigueIndex,
   });
 
   // ============================================================
@@ -117,7 +111,7 @@ class HealthResponse {
     }
 
     final parsed = double.tryParse(
-      value.toString(),
+      value.toString().trim(),
     );
 
     return parsed ?? 0.0;
@@ -136,11 +130,20 @@ class HealthResponse {
       return value.toInt();
     }
 
-    final parsed = double.tryParse(
-      value.toString(),
+    final parsed = int.tryParse(
+      value.toString().trim(),
     );
 
-    return parsed?.toInt() ?? 0;
+    if (parsed != null) {
+      return parsed;
+    }
+
+    // Handles values such as "1234.0"
+    final doubleValue = double.tryParse(
+      value.toString().trim(),
+    );
+
+    return doubleValue?.toInt() ?? 0;
   }
 
   // ============================================================
@@ -152,17 +155,82 @@ class HealthResponse {
       return '';
     }
 
-    return value.toString();
+    return value.toString().trim();
   }
 
   // ============================================================
-  // NORMALIZE TEXT
+  // NORMALIZE STRESS VALUE
+  //
+  // AI values are expected to be either:
+  //
+  // 0.0 → 1.0
+  //
+  // or:
+  //
+  // 0 → 100
+  //
+  // This function converts everything to 0.0 → 1.0.
   // ============================================================
 
-  static String _normalizeText(dynamic value) {
-    return _toString(value)
-        .trim()
-        .toLowerCase();
+  static double _normalizeStressValue(
+    dynamic value,
+  ) {
+    final number = _toDouble(value);
+
+    if (number.isNaN || number.isInfinite) {
+      return 0.0;
+    }
+
+    if (number <= 0) {
+      return 0.0;
+    }
+
+    // If AI sends percentage 0–100
+    if (number > 1.0) {
+      return (number / 100.0).clamp(
+        0.0,
+        1.0,
+      );
+    }
+
+    return number.clamp(
+      0.0,
+      1.0,
+    );
+  }
+
+  // ============================================================
+  // NORMALIZE RISK SCORE
+  //
+  // Dashboard expects risk score as 0–100.
+  //
+  // If ESP32/API sends 0–1, convert it to 0–100.
+  // ============================================================
+
+  static double _normalizeRiskScore(
+    dynamic value,
+  ) {
+    final number = _toDouble(value);
+
+    if (number.isNaN || number.isInfinite) {
+      return 0.0;
+    }
+
+    if (number <= 0) {
+      return 0.0;
+    }
+
+    if (number <= 1.0) {
+      return (number * 100.0).clamp(
+        0.0,
+        100.0,
+      );
+    }
+
+    return number.clamp(
+      0.0,
+      100.0,
+    );
   }
 
   // ============================================================
@@ -174,9 +242,9 @@ class HealthResponse {
   ) {
     return HealthResponse(
 
-      // ========================================================
-      // WORKER PROFILE
-      // ========================================================
+      // ==========================================================
+      // WORKER / PROFILE
+      // ==========================================================
 
       workerType: _toString(
         json['worker_type'],
@@ -191,142 +259,116 @@ class HealthResponse {
             json['workplace'],
       ),
 
-      // ========================================================
+      // ==========================================================
       // PHYSIOLOGICAL
-      // ========================================================
+      // ==========================================================
 
       heartRate: _toInt(
-        json['HR'],
+        json['HR'] ??
+            json['heart_rate'],
       ),
 
       hrv: _toInt(
-        json['HRV'],
+        json['HRV'] ??
+            json['hrv'],
       ),
 
       spo2: _toInt(
-        json['SpO2'],
+        json['SpO2'] ??
+            json['spo2'],
       ),
+
+      // ==========================================================
+      // BODY TEMPERATURE
+      // ==========================================================
 
       bodyTemperature: _toDouble(
-        json['body_temp'],
+        json['body_temp'] ??
+            json['body_temperature'],
       ),
 
-      // ========================================================
+      // ==========================================================
       // ENVIRONMENT
-      // ========================================================
+      // ==========================================================
 
       environmentTemperature: _toDouble(
-        json['env_temp'],
+        json['env_temp'] ??
+            json['environment_temperature'],
       ),
 
       humidity: _toDouble(
         json['humidity'],
       ),
 
-      // ========================================================
+      // ==========================================================
       // GAS SENSORS
-      // ========================================================
+      // ==========================================================
 
       mq2: _toInt(
-        json['MQ2'],
+        json['MQ2'] ??
+            json['mq2'],
       ),
 
       mq5: _toInt(
-        json['MQ5'],
+        json['MQ5'] ??
+            json['mq5'],
       ),
 
       mq135: _toInt(
-        json['MQ135'],
+        json['MQ135'] ??
+            json['mq135'],
       ),
 
-      // ========================================================
+      // ==========================================================
       // MOTION
-      // ========================================================
+      // ==========================================================
 
       accMag: _toDouble(
-        json['acc_mag'],
+        json['acc_mag'] ??
+            json['acceleration'],
       ),
 
       gyroMag: _toDouble(
-        json['gyro_mag'],
+        json['gyro_mag'] ??
+            json['rotation'],
       ),
 
-      // ========================================================
-      // AI RESULT
-      //
-      // IMPORTANT:
-      // ESP32 now sends:
-      //
-      // alert_level
-      // risk_level
-      //
-      // NOT prediction.
-      // ========================================================
+      // ==========================================================
+      // AI
+      // ==========================================================
 
-      alertLevel: _normalizeText(
-        json['alert_level'],
+      prediction: _toString(
+        json['prediction'],
       ),
 
-      riskLevel: _normalizeText(
-        json['risk_level'],
-      ),
-
-      riskScore: _toDouble(
+      riskScore: _normalizeRiskScore(
         json['risk_score'],
       ),
 
-      // ========================================================
-      // AI COMPONENTS
-      // ========================================================
-
-      cardiacStress: _toDouble(
-        json['cardiac_stress'],
+      riskLevel: _toString(
+        json['risk_level'],
       ),
 
-      oxygenRisk: _toDouble(
-        json['oxygen_risk'],
+      alertLevel: _toString(
+        json['alert_level'],
       ),
 
-      fatigueIndex: _toDouble(
-        json['fatigue_index'],
-      ),
-
-      heatStress: _toDouble(
+      heatStress: _normalizeStressValue(
         json['heat_stress'],
       ),
 
-      bodyTemperatureEffect: _toDouble(
-        json['body_temp_effect'],
-      ),
-
-      environmentalStress: _toDouble(
+      environmentStress: _normalizeStressValue(
         json['environmental_stress'] ??
             json['environment_stress'] ??
             json['env_stress'],
       ),
 
-      activityStress: _toDouble(
+      activityStress: _normalizeStressValue(
         json['activity_stress'],
       ),
 
-      motionIndex: _toDouble(
-        json['motion_index'],
-      ),
-
-      motionStress: _toDouble(
-        json['motion_stress'],
-      ),
-
-      // ========================================================
-      // STATUS
-      // ========================================================
-
-      status: _toString(
-        json['status'],
-      ),
-
-      message: _toString(
-        json['message'],
+      fatigueIndex: _normalizeStressValue(
+        json['fatigue_index'],
       ),
     );
   }
@@ -337,7 +379,7 @@ class HealthResponse {
 
   Map<String, dynamic> toJson() {
     return {
-      // Worker profile
+      // Worker
       'worker_type': workerType,
       'activity': activity,
       'environment': environment,
@@ -346,9 +388,9 @@ class HealthResponse {
       'HR': heartRate,
       'HRV': hrv,
       'SpO2': spo2,
-      'body_temp': bodyTemperature,
 
-      // Environment
+      // Temperature
+      'body_temp': bodyTemperature,
       'env_temp': environmentTemperature,
       'humidity': humidity,
 
@@ -362,90 +404,14 @@ class HealthResponse {
       'gyro_mag': gyroMag,
 
       // AI
-      'alert_level': alertLevel,
-      'risk_level': riskLevel,
+      'prediction': prediction,
       'risk_score': riskScore,
-
-      'cardiac_stress': cardiacStress,
-      'oxygen_risk': oxygenRisk,
-      'fatigue_index': fatigueIndex,
+      'risk_level': riskLevel,
+      'alert_level': alertLevel,
       'heat_stress': heatStress,
-      'body_temp_effect': bodyTemperatureEffect,
-      'environmental_stress': environmentalStress,
+      'environmental_stress': environmentStress,
       'activity_stress': activityStress,
-      'motion_index': motionIndex,
-      'motion_stress': motionStress,
-
-      // Status
-      'status': status,
-      'message': message,
+      'fatigue_index': fatigueIndex,
     };
-  }
-
-  // ============================================================
-  // HELPER: HAS AI DATA
-  // ============================================================
-
-  bool get hasAIAnalysis {
-    return alertLevel.isNotEmpty ||
-        riskLevel.isNotEmpty ||
-        riskScore > 0 ||
-        cardiacStress > 0 ||
-        oxygenRisk > 0 ||
-        fatigueIndex > 0 ||
-        heatStress > 0 ||
-        bodyTemperatureEffect > 0 ||
-        environmentalStress > 0 ||
-        activityStress > 0 ||
-        motionIndex > 0 ||
-        motionStress > 0;
-  }
-
-  // ============================================================
-  // HELPER: ALERT LEVEL
-  // ============================================================
-
-  String get displayAlertLevel {
-    if (alertLevel.isEmpty) {
-      return 'Unknown';
-    }
-
-    switch (alertLevel) {
-      case 'green':
-        return 'Safe';
-
-      case 'yellow':
-        return 'Warning';
-
-      case 'red':
-        return 'Danger';
-
-      default:
-        return alertLevel;
-    }
-  }
-
-  // ============================================================
-  // HELPER: RISK LEVEL
-  // ============================================================
-
-  String get displayRiskLevel {
-    if (riskLevel.isEmpty) {
-      return 'Unknown';
-    }
-
-    switch (riskLevel) {
-      case 'low':
-        return 'Low Risk';
-
-      case 'medium':
-        return 'Medium Risk';
-
-      case 'high':
-        return 'High Risk';
-
-      default:
-        return riskLevel;
-    }
   }
 }
