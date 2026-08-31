@@ -195,10 +195,10 @@ class HealthProvider extends ChangeNotifier {
   // GET ESP32 HEALTH / STATUS
   // ============================================================
 
-  Future<ESPState?> _getESPHealth() async {
+  Future<ESPState?> _getESPStatus() async {
     try {
       final uri = Uri.parse(
-        '$esp32BaseUrl/health',
+        '$esp32BaseUrl/status',
       );
 
       final response = await http
@@ -478,10 +478,7 @@ class HealthProvider extends ChangeNotifier {
 
   // ============================================================
   // GET COMPLETE HEALTH DATA
-  // ============================================================
- // ============================================================
-// GET COMPLETE HEALTH DATA
-// ============================================================
+  // ===========================================================
 
 Future<void> getLatestHealthData() async {
   try {
