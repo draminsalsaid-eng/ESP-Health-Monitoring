@@ -690,6 +690,16 @@ class AIHealthAnalysisScreen extends StatelessWidget {
               'Fatigue',
               healthData.fatigueIndex,
             ),
+
+            const Divider(height: 24),
+
+          _stressRow(
+           context,
+           Icons.directions_walk,
+           'Motion Stress',
+           healthData.motionStress,
+           ),
+            
           ],
         ),
       ),
