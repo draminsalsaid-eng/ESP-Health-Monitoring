@@ -18,16 +18,14 @@ class HealthResponse {
   final double bodyTemperature;
 
   // ============================================================
-  // ENVIRONMENT DATA
+  // ENVIRONMENT
   // ============================================================
 
   final double environmentTemperature;
   final double humidity;
 
   // ============================================================
-  // GAS / AIR QUALITY SENSORS
-  //
-  // Raw ADC sensor values — NOT ppm.
+  // GAS SENSORS
   // ============================================================
 
   final int mq2;
@@ -42,7 +40,7 @@ class HealthResponse {
   final double gyroMag;
 
   // ============================================================
-  // AI HEALTH ANALYSIS
+  // AI
   // ============================================================
 
   final String prediction;
@@ -107,12 +105,25 @@ class HealthResponse {
   });
 
   // ============================================================
-  // SAFE DOUBLE PARSER
+  // NUMBER PARSERS
   // ============================================================
 
-  static double _toDouble(dynamic value) {
+  static double _double(
+    Map<String, dynamic> json,
+    String key, {
+    String? alternative,
+  }) {
+    dynamic value = json[key];
+
+    if (value == null && alternative != null) {
+      value = json[alternative];
+    }
+
     if (value == null) {
-      return 0.0;
+      throw FormatException(
+        'Missing required health field: $key'
+        '${alternative != null ? ' / $alternative' : ''}',
+      );
     }
 
     if (value is num) {
@@ -123,16 +134,31 @@ class HealthResponse {
       value.toString().trim(),
     );
 
-    return parsed ?? 0.0;
+    if (parsed == null) {
+      throw FormatException(
+        'Invalid numeric value for $key: $value',
+      );
+    }
+
+    return parsed;
   }
 
-  // ============================================================
-  // SAFE INT PARSER
-  // ============================================================
+  static int _int(
+    Map<String, dynamic> json,
+    String key, {
+    String? alternative,
+  }) {
+    dynamic value = json[key];
 
-  static int _toInt(dynamic value) {
+    if (value == null && alternative != null) {
+      value = json[alternative];
+    }
+
     if (value == null) {
-      return 0;
+      throw FormatException(
+        'Missing required health field: $key'
+        '${alternative != null ? ' / $alternative' : ''}',
+      );
     }
 
     if (value is num) {
@@ -141,104 +167,118 @@ class HealthResponse {
 
     final text = value.toString().trim();
 
-    final parsed = int.tryParse(text);
+    final integer = int.tryParse(text);
 
-    if (parsed != null) {
-      return parsed;
+    if (integer != null) {
+      return integer;
     }
 
-    // Handles values such as "1234.0"
-    final doubleValue = double.tryParse(text);
+    final decimal = double.tryParse(text);
 
-    return doubleValue?.toInt() ?? 0;
+    if (decimal != null) {
+      return decimal.toInt();
+    }
+
+    throw FormatException(
+      'Invalid integer value for $key: $value',
+    );
   }
 
   // ============================================================
-  // SAFE STRING PARSER
+  // STRING PARSER
   // ============================================================
 
-  static String _toString(dynamic value) {
+  static String _string(
+    Map<String, dynamic> json,
+    String key, {
+    String? alternative,
+    String defaultValue = '',
+  }) {
+    dynamic value = json[key];
+
+    if (value == null && alternative != null) {
+      value = json[alternative];
+    }
+
     if (value == null) {
-      return '';
+      return defaultValue;
     }
 
     return value.toString().trim();
   }
 
   // ============================================================
-  // NORMALIZE STRESS VALUE
-  //
-  // Accepts:
-  //
-  // 0.0 → 1.0
-  //
-  // OR:
-  //
-  // 0 → 100
-  //
-  // Internally stored as 0.0 → 1.0.
+  // STRESS
   // ============================================================
 
-  static double _normalizeStressValue(
-    dynamic value,
-  ) {
-    final number = _toDouble(value);
+  static double _stress(
+    Map<String, dynamic> json,
+    String key, {
+    String? alternative,
+  }) {
+    dynamic value = json[key];
 
-    if (number.isNaN || number.isInfinite) {
+    if (value == null && alternative != null) {
+      value = json[alternative];
+    }
+
+    if (value == null) {
       return 0.0;
     }
 
-    if (number <= 0) {
+    final number = value is num
+        ? value.toDouble()
+        : double.tryParse(
+              value.toString().trim(),
+            );
+
+    if (number == null ||
+        number.isNaN ||
+        number.isInfinite) {
       return 0.0;
     }
 
-    // API may return percentage 0–100.
-    if (number > 1.0) {
-      return (number / 100.0).clamp(
-        0.0,
-        1.0,
-      );
+    // API returns 0.0 - 1.0
+    if (number <= 1.0) {
+      return number.clamp(0.0, 1.0);
     }
 
-    return number.clamp(
-      0.0,
-      1.0,
-    );
+    // API may return 0 - 100
+    return (number / 100.0).clamp(0.0, 1.0);
   }
 
   // ============================================================
-  // NORMALIZE RISK SCORE
-  //
-  // Dashboard representation:
-  // 0 → 100
-  //
-  // If API sends 0 → 1, convert to 0 → 100.
+  // RISK SCORE
   // ============================================================
 
-  static double _normalizeRiskScore(
-    dynamic value,
+  static double _risk(
+    Map<String, dynamic> json,
   ) {
-    final number = _toDouble(value);
+    final value = json['risk_score'];
 
-    if (number.isNaN || number.isInfinite) {
+    if (value == null) {
       return 0.0;
     }
 
-    if (number <= 0) {
+    final number = value is num
+        ? value.toDouble()
+        : double.tryParse(
+              value.toString().trim(),
+            );
+
+    if (number == null ||
+        number.isNaN ||
+        number.isInfinite) {
       return 0.0;
     }
 
+    // API returns 0 - 1
     if (number <= 1.0) {
-      return (number * 100.0).clamp(
-        0.0,
-        100.0,
-      );
+      return (number * 100.0).clamp(0.0, 100.0);
     }
 
-    return number.clamp(
-      0.0,
-      100.0,
-    );
+    // API returns 0 - 100
+    return number.clamp(0.0, 100.0);
   }
 
   // ============================================================
@@ -248,189 +288,225 @@ class HealthResponse {
   factory HealthResponse.fromJson(
     Map<String, dynamic> json,
   ) {
-    return HealthResponse(
+    // ----------------------------------------------------------
+    // DEBUG
+    // ----------------------------------------------------------
 
-      // ==========================================================
-      // WORKER / PROFILE
-      // ==========================================================
+    print('');
+    print('==========================================');
+    print('HealthResponse.fromJson');
+    print('Received keys:');
+    print(json.keys.toList());
+    print('==========================================');
 
-      workerType: _toString(
-        json['worker_type'],
+    final result = HealthResponse(
+      // ========================================================
+      // PROFILE
+      // ========================================================
+
+      workerType: _string(
+        json,
+        'worker_type',
       ),
 
-      activity: _toString(
-        json['activity'],
+      activity: _string(
+        json,
+        'activity',
       ),
 
-      environment: _toString(
-        json['environment'] ??
-            json['workplace'],
+      environment: _string(
+        json,
+        'environment',
+        alternative: 'workplace',
       ),
 
-      // ==========================================================
-      // PHYSIOLOGICAL DATA
-      // ==========================================================
+      // ========================================================
+      // PHYSIOLOGICAL
+      // ========================================================
 
-      heartRate: _toInt(
-        json['HR'] ??
-            json['heart_rate'],
+      heartRate: _int(
+        json,
+        'HR',
+        alternative: 'heart_rate',
       ),
 
-      hrv: _toInt(
-        json['HRV'] ??
-            json['hrv'],
+      hrv: _int(
+        json,
+        'HRV',
+        alternative: 'hrv',
       ),
 
-      spo2: _toInt(
-        json['SpO2'] ??
-            json['spo2'],
+      spo2: _int(
+        json,
+        'SpO2',
+        alternative: 'spo2',
       ),
 
-      bodyTemperature: _toDouble(
-        json['body_temp'] ??
-            json['body_temperature'],
+      bodyTemperature: _double(
+        json,
+        'body_temp',
+        alternative: 'body_temperature',
       ),
 
-      // ==========================================================
+      // ========================================================
       // ENVIRONMENT
-      // ==========================================================
+      // ========================================================
 
-      environmentTemperature: _toDouble(
-        json['env_temp'] ??
-            json['environment_temperature'],
+      environmentTemperature: _double(
+        json,
+        'env_temp',
+        alternative: 'environment_temperature',
       ),
 
-      humidity: _toDouble(
-        json['humidity'],
+      humidity: _double(
+        json,
+        'humidity',
       ),
 
-      // ==========================================================
-      // GAS SENSORS
-      // ==========================================================
+      // ========================================================
+      // GAS
+      // ========================================================
 
-      mq2: _toInt(
-        json['MQ2'] ??
-            json['mq2'],
+      mq2: _int(
+        json,
+        'MQ2',
+        alternative: 'mq2',
       ),
 
-      mq5: _toInt(
-        json['MQ5'] ??
-            json['mq5'],
+      mq5: _int(
+        json,
+        'MQ5',
+        alternative: 'mq5',
       ),
 
-      mq135: _toInt(
-        json['MQ135'] ??
-            json['mq135'],
+      mq135: _int(
+        json,
+        'MQ135',
+        alternative: 'mq135',
       ),
 
-      // ==========================================================
+      // ========================================================
       // MOTION
-      // ==========================================================
+      // ========================================================
 
-      accMag: _toDouble(
-        json['acc_mag'] ??
-            json['acceleration'],
+      accMag: _double(
+        json,
+        'acc_mag',
+        alternative: 'acceleration',
       ),
 
-      gyroMag: _toDouble(
-        json['gyro_mag'] ??
-            json['rotation'],
+      gyroMag: _double(
+        json,
+        'gyro_mag',
+        alternative: 'rotation',
       ),
 
-      // ==========================================================
+      // ========================================================
       // AI
-      // ==========================================================
+      // ========================================================
 
-      prediction: _toString(
-        json['prediction'],
+      prediction: _string(
+        json,
+        'prediction',
       ),
 
-      riskScore: _normalizeRiskScore(
-        json['risk_score'],
+      riskScore: _risk(
+        json,
       ),
 
-      riskLevel: _toString(
-        json['risk_level'],
+      riskLevel: _string(
+        json,
+        'risk_level',
       ),
 
-      alertLevel: _toString(
-        json['alert_level'],
+      alertLevel: _string(
+        json,
+        'alert_level',
       ),
 
-      // ==========================================================
-      // CARDIAC STRESS
-      // ==========================================================
-
-      cardiacStress: _normalizeStressValue(
-        json['cardiac_stress'],
+      cardiacStress: _stress(
+        json,
+        'cardiac_stress',
       ),
 
-      // ==========================================================
-      // OXYGEN RISK
-      // ==========================================================
-
-      oxygenRisk: _normalizeStressValue(
-        json['oxygen_risk'],
+      oxygenRisk: _stress(
+        json,
+        'oxygen_risk',
       ),
 
-      // ==========================================================
-      // FATIGUE
-      // ==========================================================
-
-      fatigueIndex: _normalizeStressValue(
-        json['fatigue_index'],
+      fatigueIndex: _stress(
+        json,
+        'fatigue_index',
       ),
 
-      // ==========================================================
-      // HEAT STRESS
-      // ==========================================================
-
-      heatStress: _normalizeStressValue(
-        json['heat_stress'],
+      heatStress: _stress(
+        json,
+        'heat_stress',
       ),
 
-      // ==========================================================
-      // BODY TEMPERATURE EFFECT
-      // ==========================================================
-
-      bodyTemperatureEffect: _normalizeStressValue(
-        json['body_temp_effect'],
+      bodyTemperatureEffect: _stress(
+        json,
+        'body_temp_effect',
       ),
 
-      // ==========================================================
-      // ENVIRONMENTAL STRESS
-      // ==========================================================
-
-      environmentStress: _normalizeStressValue(
-        json['environmental_stress'] ??
-            json['environment_stress'] ??
-            json['env_stress'],
+      environmentStress: _stress(
+        json,
+        'environmental_stress',
+        alternative: 'environment_stress',
       ),
 
-      // ==========================================================
-      // ACTIVITY STRESS
-      // ==========================================================
-
-      activityStress: _normalizeStressValue(
-        json['activity_stress'],
+      activityStress: _stress(
+        json,
+        'activity_stress',
       ),
 
-      // ==========================================================
-      // MOTION INDEX
-      // ==========================================================
-
-      motionIndex: _toDouble(
-        json['motion_index'],
+      motionIndex: _double(
+        json,
+        'motion_index',
       ),
 
-      // ==========================================================
-      // MOTION STRESS
-      // ==========================================================
-
-      motionStress: _normalizeStressValue(
-        json['motion_stress'],
+      motionStress: _stress(
+        json,
+        'motion_stress',
       ),
     );
+
+    // ==========================================================
+    // DEBUG VALUES
+    // ==========================================================
+
+    print('');
+    print('========== PARSED HEALTH DATA ==========');
+    print('Worker Type: ${result.workerType}');
+    print('Activity: ${result.activity}');
+    print('Environment: ${result.environment}');
+    print('HR: ${result.heartRate}');
+    print('HRV: ${result.hrv}');
+    print('SpO2: ${result.spo2}');
+    print('Body Temp: ${result.bodyTemperature}');
+    print('Environment Temp: ${result.environmentTemperature}');
+    print('Humidity: ${result.humidity}');
+    print('MQ2: ${result.mq2}');
+    print('MQ5: ${result.mq5}');
+    print('MQ135: ${result.mq135}');
+    print('ACC: ${result.accMag}');
+    print('GYRO: ${result.gyroMag}');
+    print('Risk Score: ${result.riskScore}');
+    print('Risk Level: ${result.riskLevel}');
+    print('Alert Level: ${result.alertLevel}');
+    print('Cardiac Stress: ${result.cardiacStress}');
+    print('Oxygen Risk: ${result.oxygenRisk}');
+    print('Fatigue: ${result.fatigueIndex}');
+    print('Heat Stress: ${result.heatStress}');
+    print('Body Temp Effect: ${result.bodyTemperatureEffect}');
+    print('Environmental Stress: ${result.environmentStress}');
+    print('Activity Stress: ${result.activityStress}');
+    print('Motion Index: ${result.motionIndex}');
+    print('Motion Stress: ${result.motionStress}');
+    print('========================================');
+    print('');
+
+    return result;
   }
 
   // ============================================================
@@ -439,32 +515,27 @@ class HealthResponse {
 
   Map<String, dynamic> toJson() {
     return {
-      // Worker / Profile
       'worker_type': workerType,
       'activity': activity,
       'environment': environment,
 
-      // Physiological
       'HR': heartRate,
       'HRV': hrv,
       'SpO2': spo2,
       'body_temp': bodyTemperature,
 
-      // Environment
       'env_temp': environmentTemperature,
       'humidity': humidity,
 
-      // Gas sensors
       'MQ2': mq2,
       'MQ5': mq5,
       'MQ135': mq135,
 
-      // Motion
       'acc_mag': accMag,
       'gyro_mag': gyroMag,
 
-      // AI
       'prediction': prediction,
+
       'risk_score': riskScore,
       'risk_level': riskLevel,
       'alert_level': alertLevel,
