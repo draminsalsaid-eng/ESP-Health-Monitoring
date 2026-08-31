@@ -479,59 +479,102 @@ class HealthProvider extends ChangeNotifier {
   // ============================================================
   // GET COMPLETE HEALTH DATA
   // ============================================================
+ // ============================================================
+// GET COMPLETE HEALTH DATA
+// ============================================================
 
-  Future<void> getLatestHealthData() async {
+Future<void> getLatestHealthData() async {
+  try {
+    _error = null;
+
+    final uri = Uri.parse(
+      '$esp32BaseUrl/health',
+    );
+
+    final response = await http
+        .get(uri)
+        .timeout(
+          requestTimeout,
+        );
+
+    debugPrint(
+      'GET latest health HTTP: '
+      '${response.statusCode}',
+    );
+
+    debugPrint(
+      'GET latest health response: '
+      '${response.body}',
+    );
+
+    // ========================================================
+    // HTTP CHECK
+    // ========================================================
+
+    if (response.statusCode != 200) {
+      _error =
+          'Failed to get health data '
+          '(HTTP ${response.statusCode})';
+
+      notifyListeners();
+
+      return;
+    }
+
+    // ========================================================
+    // DECODE JSON
+    // ========================================================
+
+    final dynamic decoded =
+        jsonDecode(
+      response.body,
+    );
+
+    if (decoded is! Map<String, dynamic>) {
+      _error =
+          'Invalid health data received from ESP32';
+
+      notifyListeners();
+
+      return;
+    }
+
+    // ========================================================
+    // READ STATUS
+    // ========================================================
+
+    final String status =
+        decoded['status']
+                ?.toString()
+                .trim()
+                .toLowerCase() ??
+            '';
+
+    debugPrint(
+      'Health endpoint status: $status',
+    );
+
+    // ========================================================
+    // DO NOT PARSE ESP32 STATUS AS HEALTH RESULT
+    // ========================================================
+
+    if (status != 'completed') {
+      debugPrint(
+        'Health result is not completed yet.',
+      );
+
+      debugPrint(
+        'Current ESP32 status: $status',
+      );
+
+      return;
+    }
+
+    // ========================================================
+    // CONVERT COMPLETED JSON TO HealthResponse
+    // ========================================================
+
     try {
-      _error = null;
-
-      final uri = Uri.parse(
-        '$esp32BaseUrl/health',
-      );
-
-      final response = await http
-          .get(uri)
-          .timeout(
-            requestTimeout,
-          );
-
-      debugPrint(
-        'GET latest health HTTP: '
-        '${response.statusCode}',
-      );
-
-      debugPrint(
-        'GET latest health response: '
-        '${response.body}',
-      );
-
-      if (response.statusCode != 200) {
-        _error =
-            'Failed to get health data '
-            '(HTTP ${response.statusCode})';
-
-        notifyListeners();
-
-        return;
-      }
-
-      final dynamic decoded =
-          jsonDecode(
-        response.body,
-      );
-
-      if (decoded is! Map<String, dynamic>) {
-        _error =
-            'Invalid health data received from ESP32';
-
-        notifyListeners();
-
-        return;
-      }
-
-      // ========================================================
-      // CONVERT JSON TO HealthResponse
-      // ========================================================
-
       _healthData =
           HealthResponse.fromJson(
         decoded,
@@ -544,15 +587,26 @@ class HealthProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint(
-        'getLatestHealthData error: $e',
+        'HealthResponse parsing error: $e',
       );
 
       _error =
-          'Failed to retrieve health data';
+          'Invalid completed health data';
 
       notifyListeners();
     }
+
+  } catch (e) {
+    debugPrint(
+      'getLatestHealthData error: $e',
+    );
+
+    _error =
+        'Failed to retrieve health data';
+
+    notifyListeners();
   }
+}
 
   // ============================================================
   // REFRESH ESP STATUS
