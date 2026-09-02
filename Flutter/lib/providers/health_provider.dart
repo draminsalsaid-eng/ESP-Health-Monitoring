@@ -683,7 +683,7 @@ Future<void> getLatestHealthData() async {
     String message,
   ) {
     _error = message;
-
+ 
     _espState = ESPState(
       status: ESPStatus.error,
       message: message,
