@@ -229,6 +229,17 @@ class HealthProvider extends ChangeNotifier {
       final dynamic decoded = jsonDecode(
         response.body,
       );
+      debugPrint('========== PROGRESS TEST ==========');
+      debugPrint('RAW ESP32 JSON: ${response.body}');
+      debugPrint('RAW status: ${decoded['status']}');
+      debugPrint('RAW progress: ${decoded['progress']}');
+
+      final testProgress =
+       (decoded['progress'] as num?)?.toInt();
+
+       debugPrint('PARSED progress: $testProgress');
+       debugPrint('===================================');
+      
 
       if (decoded is! Map<String, dynamic>) {
         _setError(
