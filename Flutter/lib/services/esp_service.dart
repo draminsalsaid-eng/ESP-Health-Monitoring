@@ -230,16 +230,20 @@ class ESPService {
   // Used by Dashboard
   // ============================================================
 
-  Future<HealthResponse> readHealthStatus() async {
-    try {
-      final data =
-          await readESPStatusJson();
+ // ============================================================
+  // READ LAST COMPLETED HEALTH DATA
+  // Used by Dashboard or Final Result Screen
+  // ============================================================
 
-      if (!data.containsKey('HR') ||
+  Future<HealthResponse?> readHealthStatus() async {
+    try {
+      final data = await readESPStatusJson();
+
+      // إذا كانت القياسات لا تزال جارية ولم تصل النتائج النهائية بعد
+      if (data['status'] == 'measuring' || 
+          !data.containsKey('HR') || 
           !data.containsKey('SpO2')) {
-        throw const NetworkException(
-          'No completed health data available',
-        );
+        return null; // نعيد قيمة فارغة بدلاً من إحداث خطأ في التطبيق
       }
 
       return HealthResponse.fromJson(data);
