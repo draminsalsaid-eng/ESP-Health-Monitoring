@@ -239,7 +239,6 @@ class HealthProvider extends ChangeNotifier {
 
        debugPrint('PARSED progress: $testProgress');
        debugPrint('===================================');
-      
 
       if (decoded is! Map<String, dynamic>) {
         _setError(
@@ -249,9 +248,20 @@ class HealthProvider extends ChangeNotifier {
         return null;
       }
 
-      return ESPState.fromJson(
-        decoded,
-      );
+      // استخدام try-catch هنا يمنع التطبيق من الانهيار 
+      // إذا كانت بيانات التقدم المؤقتة غير متوافقة بالكامل مع نموذج الـ ESPState
+      try {
+        return ESPState.fromJson(decoded);
+      } catch (e) {
+        debugPrint('Error parsing ESPState from JSON: $e');
+        
+        // إرجاع حالة افتراضية آمنة أثناء القياس إذا حدث خطأ في الـ parsing
+        return ESPState(
+          status: ESPStatus.measuring,
+          message: decoded['message']?.toString() ?? 'Measuring...',
+          progress: (decoded['progress'] as num?)?.toInt(),
+        );
+      }
     } catch (e) {
       debugPrint(
         'ESP32 /health error: $e',
