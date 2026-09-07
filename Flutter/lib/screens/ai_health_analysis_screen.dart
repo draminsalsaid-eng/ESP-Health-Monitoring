@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/health_response.dart';
 import '../providers/health_provider.dart';
-// استبدل السطر التالي بمسار ملف شاشة إعدادات العامل لديك (Setup Measurement Screen)
-import '../screens/setup_measurement_screen.dart'; 
+
+// ⚠️ هام جداً: قم بتعديل هذا السطر ليطابق المسار الحقيقي لشاشة الإعدادات أو الشاشة الرئيسية لديك
+import '../screens/dashboard_screen.dart'; // أو ضع مسار شاشة الإعدادات الفعلي لديك
 
 class AIHealthAnalysisScreen extends StatefulWidget {
   final HealthResponse healthData;
@@ -26,7 +27,6 @@ class _AIHealthAnalysisScreenState extends State<AIHealthAnalysisScreen> {
   void initState() {
     super.initState();
     _currentData = widget.healthData;
-    // يمكنك استدعاء دالة جلب التحليل من الـ Provider هنا إن وجدت
     // _fetchAIAnalysis();
   }
 
@@ -37,12 +37,7 @@ class _AIHealthAnalysisScreenState extends State<AIHealthAnalysisScreen> {
     });
 
     try {
-      // محاكاة جلب البيانات أو الاتصال بالـ API
       // await Provider.of<HealthProvider>(context, listen: false).getAIAnalysis();
-      
-      // محاكاة خطأ الاتصال للاختبار عند الحاجة:
-      // throw Exception("Connection failed");
-
       setState(() {
         _isLoading = false;
       });
@@ -184,19 +179,19 @@ class _AIHealthAnalysisScreenState extends State<AIHealthAnalysisScreen> {
         const SizedBox(height: 40),
 
         // ============================================================
-        // زر العودة إلى صفحة إعدادات العامل / بدء القياس مرة أخرى
+        // زر العودة إلى الشاشة المعنية ببدء القياس أو الإعدادات
         // ============================================================
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: () {
-              // هذا الأمر يمسح كافة الشاشات السابقة وينتقل مباشرة إلى شاشة الإعدادات وبدء القياس
+              // ⚠️ هام جداً: تأكد من استخدام اسم كلاس الشاشة الحقيقي لديك هنا
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const SetupMeasurementScreen(), // تأكد من مطابقة اسم شاشة الإعدادات لديك
+                  builder: (context) => const DashboardScreen(), // استبدلها باسم الكلاس الحقيقي لشاشة الإعدادات أو الرئيسية لديك
                 ),
-                (route) => false, // حذف جميع التراكمات السابقة في الـ Stack
+                (route) => false, 
               );
             },
             icon: const Icon(Icons.restart_alt),
