@@ -392,46 +392,7 @@ class _DashboardScreenState
                     ),
               ),
 
-              // -------------------------------------------------
-              // CARDIAC STRESS
-              // -------------------------------------------------
-
-              VitalCard(
-                title:
-                    'Cardiac Stress',
-                subtitle:
-                    'AI-assessed cardiovascular stress',
-                value:
-                    '${(data.cardiacStress * 100).round()}%',
-                icon:
-                    Icons.favorite_outline,
-                color:
-                    Colors.redAccent,
-              ),
-
-              // -------------------------------------------------
-              // OXYGEN RISK
-              // -------------------------------------------------
-
-              VitalCard(
-                title:
-                    'Oxygen Risk',
-                subtitle:
-                    'AI-assessed oxygen-related risk',
-                value:
-                    '${(data.oxygenRisk * 100).round()}%',
-                icon:
-                    Icons.bloodtype_outlined,
-                color:
-                    Colors.blue,
-              ),
-
               const SizedBox(height: 6),
-
-              // =================================================
-              // VIEW FULL AI ANALYSIS
-              // =================================================
-
 
               // =================================================
               // VIEW FULL AI ANALYSIS
