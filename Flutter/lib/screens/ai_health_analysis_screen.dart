@@ -634,12 +634,15 @@ class AIHealthAnalysisScreen extends StatelessWidget {
   ) {
     return Card(
       elevation: 1,
+
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius:
+            BorderRadius.circular(18),
       ),
 
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding:
+            const EdgeInsets.all(18),
 
         child: Column(
           crossAxisAlignment:
@@ -649,13 +652,49 @@ class AIHealthAnalysisScreen extends StatelessWidget {
 
             const Text(
               'AI Insights',
+
               style: TextStyle(
                 fontSize: 19,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
 
             const SizedBox(height: 16),
+
+            // --------------------------------------------------
+            // CARDIAC STRESS
+            // --------------------------------------------------
+
+            _stressRow(
+              context,
+              Icons.favorite_outline,
+              'Cardiac Stress',
+              healthData.cardiacStress,
+            ),
+
+            const Divider(
+              height: 24,
+            ),
+
+            // --------------------------------------------------
+            // OXYGEN RISK
+            // --------------------------------------------------
+
+            _stressRow(
+              context,
+              Icons.bloodtype_outlined,
+              'Oxygen Risk',
+              healthData.oxygenRisk,
+            ),
+
+            const Divider(
+              height: 24,
+            ),
+
+            // --------------------------------------------------
+            // HEAT STRESS
+            // --------------------------------------------------
 
             _stressRow(
               context,
@@ -664,7 +703,13 @@ class AIHealthAnalysisScreen extends StatelessWidget {
               healthData.heatStress,
             ),
 
-            const Divider(height: 24),
+            const Divider(
+              height: 24,
+            ),
+
+            // --------------------------------------------------
+            // ENVIRONMENTAL STRESS
+            // --------------------------------------------------
 
             _stressRow(
               context,
@@ -673,7 +718,13 @@ class AIHealthAnalysisScreen extends StatelessWidget {
               healthData.environmentStress,
             ),
 
-            const Divider(height: 24),
+            const Divider(
+              height: 24,
+            ),
+
+            // --------------------------------------------------
+            // ACTIVITY STRESS
+            // --------------------------------------------------
 
             _stressRow(
               context,
@@ -682,7 +733,13 @@ class AIHealthAnalysisScreen extends StatelessWidget {
               healthData.activityStress,
             ),
 
-            const Divider(height: 24),
+            const Divider(
+              height: 24,
+            ),
+
+            // --------------------------------------------------
+            // FATIGUE
+            // --------------------------------------------------
 
             _stressRow(
               context,
@@ -691,20 +748,26 @@ class AIHealthAnalysisScreen extends StatelessWidget {
               healthData.fatigueIndex,
             ),
 
-            const Divider(height: 24),
+            const Divider(
+              height: 24,
+            ),
 
-          _stressRow(
-           context,
-           Icons.directions_walk,
-           'Motion Stress',
-           healthData.motionStress,
-           ),
-            
+            // --------------------------------------------------
+            // MOTION STRESS
+            // --------------------------------------------------
+
+            _stressRow(
+              context,
+              Icons.directions_walk,
+              'Motion Stress',
+              healthData.motionStress,
+            ),
           ],
         ),
       ),
     );
   }
+
 
   // ============================================================
   // INFORMATION
