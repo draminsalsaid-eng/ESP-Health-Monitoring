@@ -2,7 +2,7 @@ class HealthResponse {
   // ============================================================
   // WORKER / PROFILE
   // ============================================================
-
+ 
   final String workerType;
   final String activity;
   final String environment;
