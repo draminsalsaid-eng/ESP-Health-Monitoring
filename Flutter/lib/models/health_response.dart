@@ -427,6 +427,7 @@ class HealthResponse {
       cardiacStress: _stress(
         json,
         'cardiac_stress',
+        alternative: 'cardiac_strain',
       ),
 
       oxygenRisk: _stress(
@@ -442,6 +443,7 @@ class HealthResponse {
       heatStress: _stress(
         json,
         'heat_stress',
+        alternative: 'heat_strain',
       ),
 
       bodyTemperatureEffect: _stress(
