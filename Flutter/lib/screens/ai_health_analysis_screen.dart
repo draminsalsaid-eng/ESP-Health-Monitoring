@@ -662,20 +662,32 @@ class AIHealthAnalysisScreen extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // --------------------------------------------------
-            // CARDIAC STRESS
-            // --------------------------------------------------
+           ```dart
+// --------------------------------------------------
+// CARDIAC STRESS
+// --------------------------------------------------
 
-            _stressRow(
-              context,
-              Icons.favorite_outline,
-              'Cardiac Stress',
-              healthData.cardiacStress,
-            ),
+_stressRow(
+  context,
+  Icons.favorite_outline,
+  'Cardiac Stress',
+  healthData.cardiacStress,
+),
 
-            const Divider(
-              height: 24,
-            ),
+const Divider(height: 24),
+
+// --------------------------------------------------
+// AUTONOMIC STRESS
+// --------------------------------------------------
+
+  _stressRow(
+  context,
+  Icons.monitor_heart_outlined,
+  'Autonomic Stress',
+  healthData.autonomicStress,
+  ),
+
+  const Divider(height: 24),
 
             // --------------------------------------------------
             // OXYGEN RISK
