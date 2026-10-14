@@ -60,7 +60,7 @@ class HealthResponse {
 
   final double motionIndex;
   final double motionStress;
-
+  final double autonomicStress;
   // ============================================================
   // CONSTRUCTOR
   // ============================================================
@@ -102,6 +102,7 @@ class HealthResponse {
 
     required this.motionIndex,
     required this.motionStress,
+    required this.autonomicStress,
   });
 
   // ============================================================
@@ -471,6 +472,11 @@ class HealthResponse {
         json,
         'motion_stress',
       ),
+
+     autonomicStress: _stress(
+       json,
+        'autonomic_strain',
+      ),
     );
 
     // ==========================================================
@@ -505,6 +511,7 @@ class HealthResponse {
     print('Activity Stress: ${result.activityStress}');
     print('Motion Index: ${result.motionIndex}');
     print('Motion Stress: ${result.motionStress}');
+    print('Autonomic Stress: ${result.autonomicStress}');
     print('========================================');
     print('');
 
@@ -553,6 +560,7 @@ class HealthResponse {
 
       'motion_index': motionIndex,
       'motion_stress': motionStress,
+      'autonomic_strain': autonomicStress,
     };
   }
 }
