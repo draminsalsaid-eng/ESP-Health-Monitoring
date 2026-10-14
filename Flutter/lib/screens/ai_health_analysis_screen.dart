@@ -662,7 +662,6 @@ class AIHealthAnalysisScreen extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-           ```dart
 // --------------------------------------------------
 // CARDIAC STRESS
 // --------------------------------------------------
