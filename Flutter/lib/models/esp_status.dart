@@ -100,6 +100,7 @@ class ESPState {
       // ----------------------------------------------------------
 
       case 'error':
+      case 'api_error':
       case 'wifi_error':
       case 'finger_removed':
         return ESPState(
