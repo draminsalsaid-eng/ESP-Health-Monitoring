@@ -50,15 +50,26 @@ class _MonitoringScreenState
         health.espState;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Health Monitoring',
-        ),
-        centerTitle: true,
+      
+appBar: AppBar(
+  title: const Text('Health Monitoring'),
+  centerTitle: true,
+  automaticallyImplyLeading: false,
+  leading: IconButton(
+    icon: const Icon(Icons.arrow_back),
+    tooltip: 'Back to Worker Setup',
+    onPressed: () {
+      final health = context.read<HealthProvider>();
 
-        // Prevent going back while monitoring.
-        automaticallyImplyLeading: false,
-      ),
+      health.reset();
+
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    },
+  ),
+),
+
 
       body: SafeArea(
         child: Padding(
